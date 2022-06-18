@@ -1,0 +1,444 @@
+{
+  "openapi": "3.1.0",
+  "x-stoplight": {
+    "id": "ftkxl946m4ba8"
+  },
+  "info": {
+    "title": "Reservation API",
+    "version": "1.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000"
+    }
+  ],
+  "paths": {
+    "/register": {
+      "post": {
+        "summary": "SignUp",
+        "operationId": "post-register",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/InternalException"
+          },
+          "401": {
+            "$ref": "#/components/responses/UserAuthenticationFailed"
+          }
+        },
+        "description": "新規に予約サービスに登録する",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "user_data": {
+                    "$ref": "#/components/schemas/User"
+                  }
+                },
+                "required": [
+                  "user_data"
+                ]
+              }
+            }
+          },
+          "description": ""
+        },
+        "x-internal": true
+      }
+    },
+    "/reserve": {
+      "post": {
+        "summary": "Reserve Event",
+        "operationId": "post-reserve",
+        "description": "イベントに予約をする",
+        "x-internal": true,
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reservation": {
+                    "$ref": "#/components/schemas/Reservation"
+                  }
+                }
+              }
+            }
+          },
+          "description": ""
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/InternalException"
+          },
+          "401": {
+            "$ref": "#/components/responses/UserAuthenticationFailed"
+          }
+        }
+      }
+    },
+    "/event": {
+      "get": {
+        "summary": "Get Event List",
+        "tags": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "events": {
+                      "type": "array",
+                      "description": "イベント一覧",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "event": {
+                            "$ref": "#/components/schemas/ReservableEvent"
+                          },
+                          "reservation": {
+                            "oneOf": [
+                              {
+                                "$ref": "#/components/schemas/Reservation"
+                              },
+                              {
+                                "type": "null",
+                                "properties": {},
+                                "description": "該当予約データが存在しなかった場合"
+                              }
+                            ],
+                            "description": "該当Userが予約している場合、予約データを返却する"
+                          }
+                        },
+                        "required": [
+                          "event"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "events"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/InternalException"
+          },
+          "401": {
+            "$ref": "#/components/responses/UserAuthenticationFailed"
+          }
+        },
+        "operationId": "get-events",
+        "description": "予約可能なイベント一覧を返す\n\nまた、Userインスタンスから予約済みかどうかも返却する",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "user": {
+                    "$ref": "#/components/schemas/UserAuthentication"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "parameters": []
+    }
+  },
+  "components": {
+    "schemas": {
+      "User": {
+        "title": "User",
+        "type": "object",
+        "description": "登録されたユーザーの情報",
+        "examples": [
+          {
+            "id": 142,
+            "firstName": "Alice",
+            "lastName": "Smith",
+            "email": "alice.smith@gmail.com",
+            "dateOfBirth": "1997-10-31",
+            "emailVerified": true,
+            "signUpDate": "2019-08-24"
+          }
+        ],
+        "properties": {
+          "firstName": {
+            "type": "string",
+            "description": "苗字"
+          },
+          "lastName": {
+            "type": "string",
+            "description": "下の名前"
+          },
+          "createdDate": {
+            "type": "string",
+            "format": "date",
+            "description": "The date that the user was created."
+          },
+          "auth": {
+            "$ref": "#/components/schemas/UserAuthentication"
+          }
+        },
+        "required": [
+          "firstName",
+          "lastName",
+          "createdDate",
+          "auth"
+        ]
+      },
+      "UserAuthentication": {
+        "title": "User Authentication",
+        "x-stoplight": {
+          "id": "1v4hdcdm22c16"
+        },
+        "type": "object",
+        "description": "Userを一意に特定できるデータ",
+        "properties": {
+          "firebase_auth_uid": {
+            "type": "string",
+            "format": "uuid",
+            "description": "FireBaseAuthenticationのuser.getUidによるもの"
+          }
+        },
+        "required": [
+          "firebase_auth_uid"
+        ]
+      },
+      "Reservation": {
+        "title": "Reservation",
+        "x-stoplight": {
+          "id": "fvxl3w3opl7us"
+        },
+        "type": "object",
+        "description": "予約情報",
+        "x-internal": false,
+        "examples": [
+          {
+            "user_id": 123456622,
+            "reservation_id": "b947feb5-3593-40ee-8244-4428da3fe32d"
+          }
+        ],
+        "properties": {
+          "user": {
+            "$ref": "#/components/schemas/UserAuthentication"
+          },
+          "reservation_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "予約に一つ一つふる番号"
+          },
+          "event": {
+            "$ref": "#/components/schemas/ReservableEvent"
+          },
+          "member_all": {
+            "type": "number",
+            "description": "予約時の人数"
+          },
+          "groupData": {
+            "$ref": "#/components/schemas/Group"
+          }
+        },
+        "required": [
+          "user",
+          "reservation_id",
+          "event",
+          "groupData"
+        ]
+      },
+      "ReservableEvent": {
+        "title": "ReservableEvent",
+        "x-stoplight": {
+          "id": "gkkwr5c0ow7cr"
+        },
+        "type": "object",
+        "description": "予約できるイベント",
+        "properties": {
+          "event_id": {
+            "type": "number",
+            "description": "イベントに一意に振ったID"
+          },
+          "displayName": {
+            "type": "string",
+            "description": "画面に表示するイベント名"
+          },
+          "description": {
+            "type": "string",
+            "description": "イベントの説明文"
+          },
+          "dating": {
+            "type": "object",
+            "properties": {
+              "date_start": {
+                "type": "string",
+                "format": "date-time",
+                "description": "イベントの開始時間"
+              },
+              "date_end": {
+                "type": "string",
+                "description": "イベントの終了時間\n\n省略されている場合は未定とする",
+                "format": "date-time"
+              },
+              "available_at": {
+                "type": "string",
+                "format": "date-time",
+                "description": "このイベントが予約できるようになる時間\n\n省略されている場合は常にこのイベントは予約可能"
+              }
+            },
+            "required": [
+              "date_start"
+            ]
+          },
+          "capacity": {
+            "type": "number",
+            "description": "予約可能な最大数\n\n省略されている場合は最大数なし"
+          },
+          "taken_capacity": {
+            "type": "number",
+            "description": "予約された人数の合計数"
+          },
+          "reservations": {
+            "type": "array",
+            "description": "このイベントに対する予約一覧",
+            "items": {
+              "$ref": "#/components/schemas/Reservation"
+            }
+          },
+          "required_reservation": {
+            "$ref": "#/components/schemas/ReservableEvent"
+          }
+        },
+        "required": [
+          "event_id",
+          "displayName",
+          "taken_capacity",
+          "reservations"
+        ]
+      },
+      "Group": {
+        "title": "Group",
+        "x-stoplight": {
+          "id": "buolit50gd0j0"
+        },
+        "type": "object",
+        "description": "来場するお客さんの人数・年齢帯などの情報",
+        "properties": {
+          "allGuest": {
+            "type": "array",
+            "description": "すべてのゲストのデータ",
+            "items": {
+              "$ref": "#/components/schemas/Guest"
+            }
+          },
+          "headcount": {
+            "type": "number",
+            "description": "すべての人数",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "allGuest",
+          "headcount"
+        ]
+      },
+      "Guest": {
+        "title": "Guest",
+        "x-stoplight": {
+          "id": "9g3hiui234ive"
+        },
+        "type": "object",
+        "description": "来場するお客さん\"一人分の\"年齢帯などの情報",
+        "properties": {
+          "type": {
+            "type": "string",
+            "format": "guestType",
+            "description": "このゲストのタイプ\n\nAdult - 一般大人\nChild - 一般子供\nParent - 内部生の親\nStudent - 内部生\nStaff - それ以外のスタッフ(先生など)",
+            "enum": [
+              "Adult",
+              "Child",
+              "Parent",
+              "Student",
+              "Staff"
+            ]
+          },
+          "relating_group": {
+            "$ref": "#/components/schemas/Group"
+          }
+        },
+        "required": [
+          "type",
+          "relating_group"
+        ]
+      }
+    },
+    "securitySchemes": {},
+    "responses": {
+      "UserAuthenticationFailed": {
+        "description": "リクエストBody内のUserAuthenticationが有効なUserを指していなかった場合のエラーレスポンス",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "auth": {
+                  "$ref": "#/components/schemas/UserAuthentication"
+                },
+                "exception": {
+                  "type": "string",
+                  "enum": [
+                    "UserAuthenticationFailed"
+                  ]
+                }
+              },
+              "required": [
+                "auth",
+                "exception"
+              ]
+            },
+            "examples": {}
+          }
+        },
+        "headers": {}
+      },
+      "InternalException": {
+        "description": "サーバー内部のエラーによる手続き不具合",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "exception": {
+                  "type": "string",
+                  "enum": [
+                    "InternalException"
+                  ]
+                },
+                "display_string": {
+                  "type": "string",
+                  "description": "クライアント側に表示するエラーメッセージ\n\n内容によってエラーコードを割り振っておく"
+                }
+              },
+              "required": [
+                "exception"
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}
