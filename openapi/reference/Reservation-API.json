@@ -35,12 +35,22 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "user_data": {
-                    "$ref": "#/components/schemas/User"
+                  "first_name": {
+                    "type": "string",
+                    "description": "苗字"
+                  },
+                  "last_name": {
+                    "type": "string",
+                    "description": "名前"
+                  },
+                  "auth": {
+                    "$ref": "#/components/schemas/UserAuthentication"
                   }
                 },
                 "required": [
-                  "user_data"
+                  "first_name",
+                  "last_name",
+                  "auth"
                 ]
               }
             }
@@ -249,7 +259,7 @@
             "type": "number",
             "description": "予約時の人数"
           },
-          "groupData": {
+          "group_data": {
             "$ref": "#/components/schemas/Group"
           }
         },
@@ -257,7 +267,7 @@
           "user",
           "reservation_id",
           "event",
-          "groupData"
+          "group_data"
         ]
       },
       "ReservableEvent": {
@@ -282,6 +292,9 @@
           },
           "dating": {
             "type": "object",
+            "required": [
+              "date_start"
+            ],
             "properties": {
               "date_start": {
                 "type": "string",
@@ -298,10 +311,7 @@
                 "format": "date-time",
                 "description": "このイベントが予約できるようになる時間\n\n省略されている場合は常にこのイベントは予約可能"
               }
-            },
-            "required": [
-              "date_start"
-            ]
+            }
           },
           "capacity": {
             "type": "number",
@@ -325,6 +335,7 @@
         "required": [
           "event_id",
           "displayName",
+          "dating",
           "taken_capacity",
           "reservations"
         ]
@@ -337,7 +348,7 @@
         "type": "object",
         "description": "来場するお客さんの人数・年齢帯などの情報",
         "properties": {
-          "allGuest": {
+          "all_guests": {
             "type": "array",
             "description": "すべてのゲストのデータ",
             "items": {
@@ -351,7 +362,7 @@
           }
         },
         "required": [
-          "allGuest",
+          "all_guests",
           "headcount"
         ]
       },
@@ -394,9 +405,6 @@
             "schema": {
               "type": "object",
               "properties": {
-                "auth": {
-                  "$ref": "#/components/schemas/UserAuthentication"
-                },
                 "exception": {
                   "type": "string",
                   "enum": [
@@ -405,7 +413,6 @@
                 }
               },
               "required": [
-                "auth",
                 "exception"
               ]
             },
