@@ -42,6 +42,7 @@ export const register = functions.https.onRequest(async (req, res) => {
           );
         } else {
           await toCollection(db.collection("users"), user);
+          res.status(200).send();
         }
       }
     }

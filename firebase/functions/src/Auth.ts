@@ -17,7 +17,7 @@ export function getIdToken(req: Request): string | undefined {
   } else {
     let token = auth.match(/^Bearer (.*)$/);
     if (token) {
-      return token[0];
+      return token[1];
     } else {
       return undefined;
     }
