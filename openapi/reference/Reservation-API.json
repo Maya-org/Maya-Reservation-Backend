@@ -42,22 +42,23 @@
                   "last_name": {
                     "type": "string",
                     "description": "名前"
-                  },
-                  "auth": {
-                    "$ref": "#/components/schemas/UserAuthentication"
                   }
                 },
                 "required": [
                   "first_name",
-                  "last_name",
-                  "auth"
+                  "last_name"
                 ]
               }
             }
           },
           "description": ""
         },
-        "x-internal": true
+        "x-internal": true,
+        "security": [
+          {
+            "Firebase Authentication Token": []
+          }
+        ]
       }
     },
     "/reserve": {
@@ -91,7 +92,12 @@
           "401": {
             "$ref": "#/components/responses/UserAuthenticationFailed"
           }
-        }
+        },
+        "security": [
+          {
+            "Firebase Authentication Token": []
+          }
+        ]
       }
     },
     "/event": {
@@ -155,16 +161,16 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "user": {
-                    "$ref": "#/components/schemas/UserAuthentication"
-                  }
-                }
+                "type": "object"
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "Firebase Authentication Token": []
+          }
+        ]
       },
       "parameters": []
     }
@@ -244,9 +250,6 @@
           }
         ],
         "properties": {
-          "user": {
-            "$ref": "#/components/schemas/UserAuthentication"
-          },
           "reservation_id": {
             "type": "string",
             "format": "uuid",
@@ -264,7 +267,6 @@
           }
         },
         "required": [
-          "user",
           "reservation_id",
           "event",
           "group_data"
@@ -396,7 +398,13 @@
         ]
       }
     },
-    "securitySchemes": {},
+    "securitySchemes": {
+      "FirebaseAuthenticationToken": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "FirebaseAuthenticationから提供されるToken"
+      }
+    },
     "responses": {
       "UserAuthenticationFailed": {
         "description": "リクエストBody内のUserAuthenticationが有効なUserを指していなかった場合のエラーレスポンス",

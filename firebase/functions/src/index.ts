@@ -3,8 +3,10 @@ import * as admin from "firebase-admin";
 import {firestore} from "firebase-admin";
 import Timestamp = firestore.Timestamp;
 import {fromCollection, toCollection, toUser} from "./api/models/User";
-import {isValidUserAuthentication, toAuth} from "./api/models/UserAuthentication";
 import {safeAsString} from "./SafeAs";
+import {authenticated} from "./Auth";
+import {toUserAuthenticationFailed} from "./api/responces/UserAuthenticationFailed";
+import {toInternalException} from "./api/responces/InternalException";
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -18,29 +20,30 @@ const db = admin.firestore();
 // });
 
 export const register = functions.https.onRequest(async (req, res) => {
-    let firstName = safeAsString(req.body.firstName)
-    let lastName = safeAsString(req.body.lastName);
-    let auth = toAuth(safeAsString(req.body.auth));
-    let timeStamp = Timestamp.now();
+  await authenticated(admin.auth(), req, res, async (user, uAuth) => {
+    const firstName = safeAsString(req.body.firstName);
+    const lastName = safeAsString(req.body.lastName);
+    const timeStamp = Timestamp.now();
 
     if (firstName === undefined || lastName === undefined) {
-        res.status(400).send(toInternalException("InternalException", "名前情報が不足しています"));
-    } else if (auth === undefined || !(await isValidUserAuthentication(admin.auth(), auth))) {
-        res.status(401).send(toUserAuthenticationFailed("UserAuthenticationFailed"));
+      res.status(400).send(toInternalException("InternalException", "名前情報が不足しています"));
     } else {
-        if (await fromCollection(db.collection("users"), auth) != null) {
-            // すでに登録済みのユーザー
-            res.status(401).send(toUserAuthenticationFailed("UserAuthenticationFailed@AlreadyRegistered"));
-        } else {
-            let user = toUser({
-                firstName, lastName, createdDate: timeStamp, auth
-            })
+      if (await fromCollection(db.collection("users"), uAuth) != null) {
+        // すでに登録済みのユーザー
+        res.status(401).send(toUserAuthenticationFailed("UserAuthenticationFailed@AlreadyRegistered"));
+      } else {
+        const user = toUser(
+          firstName, lastName, timeStamp, uAuth
+        );
 
-            if (user === null) {
-                res.status(400).send(toInternalException("InternalException", "ユーザー情報が不足しています"));
-            } else {
-                await toCollection(db.collection("users"), user)
-            }
+        if (user === null) {
+          res.status(400).send(
+            toInternalException("InternalException", "ユーザー情報が不足しています")
+          );
+        } else {
+          await toCollection(db.collection("users"), user);
         }
+      }
     }
+  })
 });

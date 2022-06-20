@@ -1,9 +1,13 @@
 type UserAuthenticationFailed = {
-    exception: string;
+  exception: string;
 }
 
-function toUserAuthenticationFailed(exception: string): UserAuthenticationFailed {
-    return {
-        exception: exception
-    }
+/**
+ * @return {UserAuthenticationFailed} A new instance of UserAuthenticationFailed
+ * @param exception
+ */
+export function toUserAuthenticationFailed(exception: string): UserAuthenticationFailed {
+  return {
+    exception: exception
+  }
 }

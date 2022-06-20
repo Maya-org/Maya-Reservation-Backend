@@ -1,4 +1,4 @@
 type Group = {
-    all_guests:Guest[];
-    headcount:number;
+  all_guests: Guest[];
+  headcount: number;
 }

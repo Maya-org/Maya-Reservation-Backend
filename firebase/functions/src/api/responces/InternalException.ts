@@ -1,11 +1,1 @@
-type InternalException = {
-    exception: string;
-    display_string?: string;
-}
-
-function toInternalException(exception: string, display_string?: string): InternalException {
-    return {
-        exception,
-        display_string
-    }
-}
+type InternalException = {  exception: string;  display_string?: string;}/** * @return {InternalException} A new instance of InternalException * @param exception * @param display_string */export function toInternalException(exception: string, display_string?: string): InternalException {  return {    exception,    display_string  };}
