@@ -57,7 +57,11 @@ export const user = functions.https.onRequest(async (req, res) => {
         toInternalException("InternalException", "ユーザー情報が不足しています")
       );
     } else {
-      res.status(200).send(user);
+      res.status(200).send({
+        firstName: user.firstName,
+        lastName: user.lastName,
+        createdAt: user.createdDate
+      });
     }
   })
 });

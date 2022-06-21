@@ -194,6 +194,9 @@
               }
             }
           },
+          "401": {
+            "$ref": "#/components/responses/UserAuthenticationFailed"
+          },
           "404": {
             "$ref": "#/components/responses/InternalException"
           }
