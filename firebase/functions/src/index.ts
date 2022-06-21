@@ -60,7 +60,7 @@ export const user = functions.https.onRequest(async (req, res) => {
       res.status(200).send({
         firstName: user.firstName,
         lastName: user.lastName,
-        createdAt: user.createdDate
+        createdDate: user.createdDate
       });
     }
   })
