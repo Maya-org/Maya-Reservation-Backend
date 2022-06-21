@@ -48,3 +48,16 @@ export const register = functions.https.onRequest(async (req, res) => {
     }
   })
 });
+
+export const user = functions.https.onRequest(async (req, res) => {
+  await authenticated(admin.auth(), req, res, async (record, uAuth) => {
+    const user = await fromCollection(db.collection("users"), uAuth);
+    if (user === null) {
+      res.status(404).send(
+        toInternalException("InternalException", "ユーザー情報が不足しています")
+      );
+    } else {
+      res.status(200).send(user);
+    }
+  })
+});

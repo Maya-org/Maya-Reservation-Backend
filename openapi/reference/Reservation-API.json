@@ -173,6 +173,39 @@
         ]
       },
       "parameters": []
+    },
+    "/user": {
+      "get": {
+        "summary": "Your GET endpoint",
+        "tags": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "user": {
+                      "$ref": "#/components/schemas/User"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/InternalException"
+          }
+        },
+        "operationId": "get-user",
+        "description": "自分自身の情報を取得します",
+        "security": [
+          {
+            "FirebaseAuthenticationToken": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -205,34 +238,12 @@
             "type": "string",
             "format": "date",
             "description": "The date that the user was created."
-          },
-          "auth": {
-            "$ref": "#/components/schemas/UserAuthentication"
           }
         },
         "required": [
           "firstName",
           "lastName",
-          "createdDate",
-          "auth"
-        ]
-      },
-      "UserAuthentication": {
-        "title": "User Authentication",
-        "x-stoplight": {
-          "id": "1v4hdcdm22c16"
-        },
-        "type": "object",
-        "description": "Userを一意に特定できるデータ",
-        "properties": {
-          "firebase_auth_uid": {
-            "type": "string",
-            "format": "uuid",
-            "description": "FireBaseAuthenticationのuser.getUidによるもの"
-          }
-        },
-        "required": [
-          "firebase_auth_uid"
+          "createdDate"
         ]
       },
       "Reservation": {
