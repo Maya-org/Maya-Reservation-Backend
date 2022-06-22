@@ -274,7 +274,7 @@
         "description": "予約できるイベント",
         "properties": {
           "event_id": {
-            "type": "number",
+            "type": "string",
             "description": "イベントに一意に振ったID"
           },
           "displayName": {

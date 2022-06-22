@@ -4,7 +4,7 @@ import Reference = database.Reference;
 import DocumentSnapshot = firestore.DocumentSnapshot;
 
 export type ReservableEvent = {
-  event_id: number;
+  event_id: string;
   display_name: string;
   description?: string;
 
@@ -21,7 +21,7 @@ export type ReservableEvent = {
 export function eventFromDoc(doc:DocumentSnapshot): ReservableEvent | null {
   if (doc.exists) {
     // Eventが存在する場合
-    const event_id = doc.get("event_id") as number;
+    const event_id = doc.ref.id;
     const display_name = doc.get("display_name") as string;
     const description = safeAsString(doc.get("description"));
     const date_start = doc.get("date_start") as string;
