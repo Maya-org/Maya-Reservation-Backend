@@ -10,7 +10,7 @@ type User = {
   auth: UserAuthentication;
 }
 
-export async function toCollection(collection: CollectionReference, user: User) {
+export async function userToCollection(collection: CollectionReference, user: User) {
   await collection.doc(user.auth.firebase_auth_uid).set({
     firstName: user.firstName,
     lastName: user.lastName,
@@ -18,7 +18,7 @@ export async function toCollection(collection: CollectionReference, user: User) 
   })
 }
 
-export async function fromCollection(collection: CollectionReference, auth: UserAuthentication): Promise<User | null> {
+export async function userFromCollection(collection: CollectionReference, auth: UserAuthentication): Promise<User | null> {
   let doc = await collection.doc(auth.firebase_auth_uid).get();
   if (doc.exists) {
     return {

@@ -2,11 +2,12 @@ import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import {firestore} from "firebase-admin";
 import Timestamp = firestore.Timestamp;
-import {fromCollection, toCollection, toUser} from "./api/models/User";
+import {userFromCollection, userToCollection, toUser} from "./api/models/User";
 import {safeAsString} from "./SafeAs";
 import {authenticated} from "./Auth";
 import {toUserAuthenticationFailed} from "./api/responces/UserAuthenticationFailed";
 import {toInternalException} from "./api/responces/InternalException";
+import {eventFromDoc, ReservableEvent} from "./api/models/ReservableEvent";
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -28,7 +29,7 @@ export const register = functions.https.onRequest(async (req, res) => {
     if (firstName === undefined || lastName === undefined) {
       res.status(400).send(toInternalException("InternalException", "名前情報が不足しています"));
     } else {
-      if (await fromCollection(db.collection("users"), uAuth) != null) {
+      if (await userFromCollection(db.collection("users"), uAuth) != null) {
         // すでに登録済みのユーザー
         res.status(401).send(toUserAuthenticationFailed("UserAuthenticationFailed@AlreadyRegistered"));
       } else {
@@ -41,7 +42,7 @@ export const register = functions.https.onRequest(async (req, res) => {
             toInternalException("InternalException", "ユーザー情報が不足しています")
           );
         } else {
-          await toCollection(db.collection("users"), user);
+          await userToCollection(db.collection("users"), user);
           res.status(200).send();
         }
       }
@@ -51,7 +52,7 @@ export const register = functions.https.onRequest(async (req, res) => {
 
 export const user = functions.https.onRequest(async (req, res) => {
   await authenticated(admin.auth(), req, res, async (record, uAuth) => {
-    const user = await fromCollection(db.collection("users"), uAuth);
+    const user = await userFromCollection(db.collection("users"), uAuth);
     if (user === null) {
       res.status(404).send(
         toInternalException("InternalException", "ユーザー情報が不足しています")
@@ -64,4 +65,15 @@ export const user = functions.https.onRequest(async (req, res) => {
       });
     }
   })
+});
+
+export const event = functions.https.onRequest(async (req, res) => {
+  await authenticated(admin.auth(), req, res, async (record, uAuth) => {
+    const docReference = await db.collection("events").get();
+    const events = docReference.docs.map(doc => {
+      return eventFromDoc(doc);
+    }).filter(ev => ev !== null) as ReservableEvent[];
+
+    res.status(200).send(events);
+  });
 });

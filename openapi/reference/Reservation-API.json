@@ -116,28 +116,7 @@
                       "type": "array",
                       "description": "イベント一覧",
                       "items": {
-                        "type": "object",
-                        "properties": {
-                          "event": {
-                            "$ref": "#/components/schemas/ReservableEvent"
-                          },
-                          "reservation": {
-                            "oneOf": [
-                              {
-                                "$ref": "#/components/schemas/Reservation"
-                              },
-                              {
-                                "type": "null",
-                                "properties": {},
-                                "description": "該当予約データが存在しなかった場合"
-                              }
-                            ],
-                            "description": "該当Userが予約している場合、予約データを返却する"
-                          }
-                        },
-                        "required": [
-                          "event"
-                        ]
+                        "$ref": "#/components/schemas/ReservableEvent"
                       }
                     }
                   },
@@ -306,29 +285,6 @@
             "type": "string",
             "description": "イベントの説明文"
           },
-          "dating": {
-            "type": "object",
-            "required": [
-              "date_start"
-            ],
-            "properties": {
-              "date_start": {
-                "type": "string",
-                "format": "date-time",
-                "description": "イベントの開始時間"
-              },
-              "date_end": {
-                "type": "string",
-                "description": "イベントの終了時間\n\n省略されている場合は未定とする",
-                "format": "date-time"
-              },
-              "available_at": {
-                "type": "string",
-                "format": "date-time",
-                "description": "このイベントが予約できるようになる時間\n\n省略されている場合は常にこのイベントは予約可能"
-              }
-            }
-          },
           "capacity": {
             "type": "number",
             "description": "予約可能な最大数\n\n省略されている場合は最大数なし"
@@ -346,14 +302,29 @@
           },
           "required_reservation": {
             "$ref": "#/components/schemas/ReservableEvent"
+          },
+          "date_start": {
+            "type": "string",
+            "format": "date-time",
+            "description": "イベントの開始時間"
+          },
+          "date_end": {
+            "type": "string",
+            "format": "date-time",
+            "description": "イベントの終了時間\n\n省略されている場合は未定とする"
+          },
+          "available_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "このイベントが予約できるようになる時間\n\n省略されている場合は常にこのイベントは予約可能"
           }
         },
         "required": [
           "event_id",
           "displayName",
-          "dating",
           "taken_capacity",
-          "reservations"
+          "reservations",
+          "date_start"
         ]
       },
       "Group": {
