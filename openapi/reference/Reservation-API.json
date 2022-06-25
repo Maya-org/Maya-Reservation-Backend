@@ -19,7 +19,7 @@
         "operationId": "post-register",
         "responses": {
           "200": {
-            "description": "OK"
+            "description": ""
           },
           "400": {
             "$ref": "#/components/responses/InternalException"
@@ -84,7 +84,7 @@
         },
         "responses": {
           "200": {
-            "description": "OK"
+            "description": ""
           },
           "400": {
             "$ref": "#/components/responses/InternalException"
@@ -98,6 +98,40 @@
             "Firebase Authentication Token": []
           }
         ]
+      },
+      "get": {
+        "summary": "List Reservations",
+        "operationId": "get-reserve",
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "400": {
+            "$ref": "#/components/responses/InternalException"
+          },
+          "401": {
+            "$ref": "#/components/responses/UserAuthenticationFailed"
+          }
+        },
+        "description": "予約データ一覧を取得する",
+        "security": [
+          {
+            "FirebaseAuthenticationToken": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "description": "当該Userの予約データ",
+                "items": {
+                  "$ref": "#/components/schemas/Reservation"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/event": {
@@ -106,7 +140,7 @@
         "tags": [],
         "responses": {
           "200": {
-            "description": "OK",
+            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -135,7 +169,7 @@
           }
         },
         "operationId": "get-events",
-        "description": "予約可能なイベント一覧を返す\n\nまた、Userインスタンスから予約済みかどうかも返却する",
+        "description": "予約可能なイベント一覧を返す",
         "requestBody": {
           "content": {
             "application/json": {
@@ -372,14 +406,10 @@
               "Student",
               "Staff"
             ]
-          },
-          "relating_group": {
-            "$ref": "#/components/schemas/Group"
           }
         },
         "required": [
-          "type",
-          "relating_group"
+          "type"
         ]
       }
     },

@@ -1,7 +1,7 @@
-import {database, firestore} from "firebase-admin";
+import {firestore} from "firebase-admin";
 import {safeAsNumber, safeAsReference, safeAsString} from "../../SafeAs";
-import Reference = database.Reference;
 import DocumentSnapshot = firestore.DocumentSnapshot;
+import DocumentReference = firestore.DocumentReference;
 
 export type ReservableEvent = {
   event_id: string;
@@ -14,8 +14,8 @@ export type ReservableEvent = {
 
   capacity?: number;
   taken_capacity: number;
-  reservations: Reference[];
-  required_reservation?: Reference;
+  reservations: DocumentReference[];
+  required_reservation?: DocumentReference;
 }
 
 export function eventFromDoc(doc:DocumentSnapshot): ReservableEvent | null {
@@ -29,7 +29,7 @@ export function eventFromDoc(doc:DocumentSnapshot): ReservableEvent | null {
     const available_at = safeAsString(doc.get("available_at"));
     const capacity = safeAsNumber(doc.get("capacity"));
     const taken_capacity = doc.get("taken_capacity") as number;
-    const reservations = (doc.get("reservations") as Reference[]);
+    const reservations = (doc.get("reservations") as string[]).map(ref => safeAsReference(ref)).filter(ref => ref !== undefined) as DocumentReference[];
     const required_reservation = safeAsReference(doc.get("required_reservation"));
 
     return {

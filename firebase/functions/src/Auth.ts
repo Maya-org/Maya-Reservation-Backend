@@ -1,8 +1,7 @@
-import {Request} from "firebase-functions/lib/common/providers/https";
 import {auth} from "firebase-admin";
 import Auth = auth.Auth;
 import {UserRecord} from "firebase-admin/lib/auth/user-record";
-import {Response} from "firebase-functions";
+import {Request, Response} from "firebase-functions";
 import {toAuth, UserAuthentication} from "./api/models/UserAuthentication";
 import {toUserAuthenticationFailed} from "./api/responces/UserAuthenticationFailed";
 

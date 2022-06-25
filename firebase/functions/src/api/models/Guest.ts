@@ -1,4 +1,17 @@
-type Guest = {
+export type Guest = {
   type: "Adult" | "Child" | "Parent" | "Student" | "Staff";
-  relating_group: Group;
+}
+
+export function guestFromString(type: string): Guest | null {
+  switch (type) {
+    case "Adult":
+    case "Child":
+    case "Parent":
+    case "Student":
+    case "Staff":
+      return {
+        type: type as "Adult" | "Child" | "Parent" | "Student" | "Staff"
+      }
+  }
+  return null;
 }

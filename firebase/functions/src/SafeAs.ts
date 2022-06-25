@@ -2,8 +2,9 @@
  * TSのゴミ仕様に対抗する
  * @return {string|undefined} 絶対にこれのどっちかを返す
  */
-import {database} from "firebase-admin";
-import Reference = database.Reference;
+import {firestore} from "firebase-admin";
+import {DocumentSnapshot} from "firebase-functions/lib/providers/firestore";
+import DocumentReference = firestore.DocumentReference;
 
 export function safeAsString(value: any): string | undefined {
   if (value === undefined || value === null) {
@@ -29,11 +30,22 @@ export function safeAsNumber(value: any): number | undefined {
 
 /**
  * TSのゴミ仕様に対抗する
- * @return {Reference|undefined} 絶対にこれのどっちかを返す
+ * @return {DocumentReference|undefined} 絶対にこれのどっちかを返す
  */
-export function safeAsReference(value: any): Reference | undefined {
+export function safeAsReference(value: any): DocumentReference | undefined {
   if (value === undefined || value === null) {
     return undefined;
   }
-  return value as Reference;
+  return value as DocumentReference;
+}
+
+/**
+ * TSのゴミ仕様に対抗する
+ * @return {DocumentSnapshot|undefined} 絶対にこれのどっちかを返す
+ */
+export function safeAsDocumentSnapshot(value: any): DocumentSnapshot | undefined {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+  return value as DocumentSnapshot;
 }
