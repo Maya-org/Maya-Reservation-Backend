@@ -1,13 +1,12 @@
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import {firestore} from "firebase-admin";
-import Timestamp = firestore.Timestamp;
-import {userFromCollection, userToCollection, toUser} from "./api/models/User";
+import {toUser, userFromCollection, userToCollection} from "./api/models/User";
 import {safeAsString} from "./SafeAs";
 import {authenticated} from "./Auth";
 import {toUserAuthenticationFailed} from "./api/responces/UserAuthenticationFailed";
 import {toInternalException} from "./api/responces/InternalException";
-import {eventFromDoc, ReservableEvent} from "./api/models/ReservableEvent";
+import {eventFromDoc, ReservableEvent, ReservationStatus, reserveEvent} from "./api/models/ReservableEvent";
 import {onGET, onPOST} from "./EndPointUtil";
 import {
   Reservation,
@@ -15,6 +14,7 @@ import {
   reservationFromRequestBody,
   reservationToCollection
 } from "./api/models/Reservation";
+import Timestamp = firestore.Timestamp;
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -99,14 +99,40 @@ export const reserve = functions.https.onRequest(async (q, s) => {
           toInternalException("InternalException", "予約情報が不足しています")
         );
       } else {
-        // TODO check availability
-        let b = await reservationToCollection(reservation, db.collection("reservations").doc(user.uid).collection("reservations"), db.collection("events"));
-        if (b) {
-          res.status(200).send();
-        } else {
-          res.status(400).send(
-            toInternalException("InternalException", "指定されたイベントが存在しません")
-          );
+        // Check Event Availability and Update Event Taken_Capacity
+        let reservation_status: ReservationStatus = await reserveEvent(db, db.collection("events"),user, reservation.event, reservation.group_data);
+
+        switch (reservation_status) {
+          case ReservationStatus.RESERVED:
+            // Add Reservation to Reservation Collection
+            let b = await reservationToCollection(reservation, db.collection("reservations").doc(user.uid).collection("reservations"), db.collection("events"));
+            if (b) {
+              res.status(200).send();
+            } else {
+              res.status(400).send(
+                toInternalException("InternalException", "指定されたイベントが存在しません")
+              );
+            }
+            break;
+          case ReservationStatus.CAPACITY_OVER:
+            res.status(400).send(
+              toInternalException("InternalException@CapacityOver", "定員オーバーです")
+            );
+            break;
+          case ReservationStatus.EVENT_NOT_FOUND:
+            res.status(400).send(
+              toInternalException("InternalException@EventNotFound", "指定されたイベントが存在しません")
+            );
+            break;
+          case ReservationStatus.TRANSACTION_FAILED:
+            res.status(400).send(
+              toInternalException("InternalException@TransactionFailed", "予約に失敗しました")
+            );
+            break;
+          case ReservationStatus.ALREADY_RESERVED:
+            res.status(400).send(
+              toInternalException("InternalException@AlreadyReserved", "すでに予約済みです")
+            );
         }
       }
     });
