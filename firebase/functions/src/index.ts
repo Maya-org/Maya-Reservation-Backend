@@ -7,7 +7,7 @@ import {authenticated} from "./Auth";
 import {toUserAuthenticationFailed} from "./api/responces/UserAuthenticationFailed";
 import {toInternalException} from "./api/responces/InternalException";
 import {eventFromDoc, ReservableEvent, ReservationStatus, reserveEvent} from "./api/models/ReservableEvent";
-import {onGET, onPOST} from "./EndPointUtil";
+import {addTypeProperty, onGET, onPOST} from "./EndPointUtil";
 import {
   Reservation,
   reservationFromDocument,
@@ -19,17 +19,10 @@ import Timestamp = firestore.Timestamp;
 admin.initializeApp();
 const db = admin.firestore();
 
-// // Start writing Firebase Functions
-// // https://firebase.google.com/docs/functions/typescript
-//
-// export const helloWorld = functions.https.onRequest((request, response) => {
-//   functions.logger.info("Hello logs!", {structuredData: true});
-//   response.send("Hello from Firebase!");
-// });
 
 export const register = functions.https.onRequest(async (q, s) => {
   await onPOST(q, s, async (req, res) => {
-    await authenticated(admin.auth(), req, res, async (user, uAuth) => {
+    await authenticated(admin.auth(), req, res, async (_ur, uAuth) => {
       const firstName = safeAsString(req.body.firstName);
       const lastName = safeAsString(req.body.lastName);
       const timeStamp = Timestamp.now();
@@ -41,17 +34,17 @@ export const register = functions.https.onRequest(async (q, s) => {
           // すでに登録済みのユーザー
           res.status(401).send(toUserAuthenticationFailed("UserAuthenticationFailed@AlreadyRegistered"));
         } else {
-          const user = toUser(
+          const us = toUser(
             firstName, lastName, timeStamp, uAuth
           );
 
-          if (user === null) {
+          if (us === null) {
             res.status(400).send(
               toInternalException("InternalException", "ユーザー情報が不足しています")
             );
           } else {
-            await userToCollection(db.collection("users"), user);
-            res.status(200).send();
+            await userToCollection(db.collection("users"), us);
+            res.status(200).send(addTypeProperty({},"register"));
           }
         }
       }
@@ -61,18 +54,18 @@ export const register = functions.https.onRequest(async (q, s) => {
 
 export const user = functions.https.onRequest(async (q, s) => {
   await onGET(q, s, async (req, res) => {
-    await authenticated(admin.auth(), req, res, async (record, uAuth) => {
-      const user = await userFromCollection(db.collection("users"), uAuth);
-      if (user === null) {
+    await authenticated(admin.auth(), req, res, async (_record, uAuth) => {
+      const us = await userFromCollection(db.collection("users"), uAuth);
+      if (us === null) {
         res.status(404).send(
           toInternalException("InternalException", "ユーザー情報が不足しています")
         );
       } else {
-        res.status(200).send({
-          firstName: user.firstName,
-          lastName: user.lastName,
-          createdDate: user.createdDate
-        });
+        res.status(200).send(addTypeProperty({
+          firstName: us.firstName,
+          lastName: us.lastName,
+          createdDate: us.createdDate
+        },"user"));
       }
     })
   });
@@ -80,19 +73,19 @@ export const user = functions.https.onRequest(async (q, s) => {
 
 export const event = functions.https.onRequest(async (q, s) => {
   await onGET(q, s, async (req, res) => {
-    await authenticated(admin.auth(), req, res, async (record, uAuth) => {
+    await authenticated(admin.auth(), req, res, async (_record, _uAuth) => {
       const docReference = await db.collection("events").get();
       const events = docReference.docs.map(doc => {
         return eventFromDoc(doc);
       }).filter(ev => ev !== null) as ReservableEvent[];
-      res.status(200).send(events);
+      res.status(200).send(addTypeProperty({"events": events},"events"));
     });
   });
 });
 
 export const reserve = functions.https.onRequest(async (q, s) => {
   await onPOST(q, s, async (req, res) => {
-    await authenticated(admin.auth(), req, res, async (user, uAuth) => {
+    await authenticated(admin.auth(), req, res, async (record, _uAuth) => {
       const reservation = await reservationFromRequestBody(req, db);
       if (reservation === null) {
         res.status(400).send(
@@ -100,14 +93,14 @@ export const reserve = functions.https.onRequest(async (q, s) => {
         );
       } else {
         // Check Event Availability and Update Event Taken_Capacity
-        let reservation_status: ReservationStatus = await reserveEvent(db, db.collection("events"),user, reservation.event, reservation.group_data);
+        let reservation_status: ReservationStatus = await reserveEvent(db, db.collection("events"), record, reservation.event, reservation.group_data);
 
         switch (reservation_status) {
           case ReservationStatus.RESERVED:
             // Add Reservation to Reservation Collection
-            let b = await reservationToCollection(reservation, db.collection("reservations").doc(user.uid).collection("reservations"), db.collection("events"));
+            let b = await reservationToCollection(reservation, db.collection("reservations").doc(record.uid).collection("reservations"), db.collection("events"));
             if (b) {
-              res.status(200).send();
+              res.status(200).send(addTypeProperty({},"post-reservation"));
             } else {
               res.status(400).send(
                 toInternalException("InternalException", "指定されたイベントが存在しません")
@@ -139,12 +132,12 @@ export const reserve = functions.https.onRequest(async (q, s) => {
   });
 
   await onGET(q, s, async (req, res) => {
-    await authenticated(admin.auth(), req, res, async (record, uAuth) => {
+    await authenticated(admin.auth(), req, res, async (record, _uAuth) => {
       const docReference = await db.collection("reservations").doc(record.uid).collection("reservations").get();
       const reservations = (await Promise.all(docReference.docs.map(async doc => {
-        return await reservationFromDocument(doc);
+        return reservationFromDocument(doc);
       }))).filter(ev => ev !== null) as Reservation[];
-      res.status(200).send(reservations);
+      res.status(200).send(addTypeProperty({"reservations": reservations},"get-reservation"));
     });
   });
 });

@@ -23,3 +23,12 @@ export async function onPOST(q: Request, s: Response, body: (req: Request, res: 
     await body(q, s);
   }
 }
+
+/**
+ * Typeプロパティを追加する
+ * @param obj
+ * @param type
+ */
+export function addTypeProperty(obj: {}, type: string): {} {
+  return Object.assign(obj, {"type": type});
+}

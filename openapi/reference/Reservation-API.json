@@ -19,7 +19,26 @@
         "operationId": "post-register",
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "register"
+                      ],
+                      "description": "TypeParameter"
+                    }
+                  },
+                  "required": [
+                    "type"
+                  ]
+                }
+              }
+            }
           },
           "400": {
             "$ref": "#/components/responses/InternalException"
@@ -76,7 +95,10 @@
                   "reservation": {
                     "$ref": "#/components/schemas/Reservation"
                   }
-                }
+                },
+                "required": [
+                  "reservation"
+                ]
               }
             }
           },
@@ -84,7 +106,22 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "post-reservation"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
           },
           "400": {
             "$ref": "#/components/responses/InternalException"
@@ -104,7 +141,33 @@
         "operationId": "get-reserve",
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "get-reservation"
+                      ]
+                    },
+                    "reservations": {
+                      "type": "array",
+                      "description": "当該Userの予約データ",
+                      "items": {
+                        "$ref": "#/components/schemas/Reservation"
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "reservations"
+                  ]
+                }
+              }
+            }
           },
           "400": {
             "$ref": "#/components/responses/InternalException"
@@ -123,11 +186,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "array",
-                "description": "当該Userの予約データ",
-                "items": {
-                  "$ref": "#/components/schemas/Reservation"
-                }
+                "type": "object"
               }
             }
           }
@@ -152,10 +211,17 @@
                       "items": {
                         "$ref": "#/components/schemas/ReservableEvent"
                       }
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "events"
+                      ]
                     }
                   },
                   "required": [
-                    "events"
+                    "events",
+                    "type"
                   ]
                 }
               }
@@ -201,8 +267,17 @@
                   "properties": {
                     "user": {
                       "$ref": "#/components/schemas/User"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "user"
+                      ]
                     }
-                  }
+                  },
+                  "required": [
+                    "type"
+                  ]
                 }
               }
             }
