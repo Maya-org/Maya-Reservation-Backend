@@ -66,7 +66,7 @@ export async function reserveEvent(db: Firestore, eventsCollection: CollectionRe
   // Check if the user is already reserved at same group data
   let docReference = await db.collection("reservations").doc(user.uid).collection("reservations").get()
   const reservations = (await Promise.all(docReference.docs.map(async doc => {
-    return await reservationFromDocument(doc);
+    return reservationFromDocument(doc);
   }))).filter(ev => ev !== null) as Reservation[];
   const reservation = reservations.find(rv => rv.event.event_id === event.event_id);
   if (reservation !== undefined) {
@@ -86,7 +86,7 @@ export async function reserveEvent(db: Firestore, eventsCollection: CollectionRe
           // 予約上限がある場合
           if (new_taken_capacity <= capacity) {
             // 予約可能
-            await t.update(ref, {
+            t.update(ref, {
               taken_capacity: new_taken_capacity
             });
             return ReservationStatus.RESERVED;
@@ -96,7 +96,7 @@ export async function reserveEvent(db: Firestore, eventsCollection: CollectionRe
           }
         } else {
           // 予約上限がない場合
-          await t.update(ref, {
+          t.update(ref, {
             taken_capacity: new_taken_capacity
           });
           return ReservationStatus.RESERVED;

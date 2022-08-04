@@ -3,7 +3,7 @@ import * as admin from "firebase-admin";
 import {firestore} from "firebase-admin";
 import {toUser, userFromCollection, userToCollection} from "./api/models/User";
 import {safeAsString} from "./SafeAs";
-import {authenticated} from "./Auth";
+import {authenticated, checkPermission, Permission} from "./Auth";
 import {toUserAuthenticationFailed} from "./api/responces/UserAuthenticationFailed";
 import {toInternalException} from "./api/responces/InternalException";
 import {eventFromDoc, ReservableEvent, ReservationStatus, reserveEvent} from "./api/models/ReservableEvent";
@@ -44,7 +44,7 @@ export const register = functions.https.onRequest(async (q, s) => {
             );
           } else {
             await userToCollection(db.collection("users"), us);
-            res.status(200).send(addTypeProperty({},"register"));
+            res.status(200).send(addTypeProperty({}, "register"));
           }
         }
       }
@@ -65,7 +65,7 @@ export const user = functions.https.onRequest(async (q, s) => {
           firstName: us.firstName,
           lastName: us.lastName,
           createdDate: us.createdDate
-        },"user"));
+        }, "user"));
       }
     })
   });
@@ -78,7 +78,7 @@ export const event = functions.https.onRequest(async (q, s) => {
       const events = docReference.docs.map(doc => {
         return eventFromDoc(doc);
       }).filter(ev => ev !== null) as ReservableEvent[];
-      res.status(200).send(addTypeProperty({"events": events},"events"));
+      res.status(200).send(addTypeProperty({"events": events}, "events"));
     });
   });
 });
@@ -100,7 +100,7 @@ export const reserve = functions.https.onRequest(async (q, s) => {
             // Add Reservation to Reservation Collection
             let b = await reservationToCollection(reservation, db.collection("reservations").doc(record.uid).collection("reservations"), db.collection("events"));
             if (b) {
-              res.status(200).send(addTypeProperty({},"post-reservation"));
+              res.status(200).send(addTypeProperty({"reservation_id": reservation.reservation_id}, "post-reservation"));
             } else {
               res.status(400).send(
                 toInternalException("InternalException", "指定されたイベントが存在しません")
@@ -137,7 +137,28 @@ export const reserve = functions.https.onRequest(async (q, s) => {
       const reservations = (await Promise.all(docReference.docs.map(async doc => {
         return reservationFromDocument(doc);
       }))).filter(ev => ev !== null) as Reservation[];
-      res.status(200).send(addTypeProperty({"reservations": reservations},"get-reservation"));
+      res.status(200).send(addTypeProperty({"reservations": reservations}, "get-reservation"));
     });
+  });
+});
+
+export const permissions = functions.https.onRequest(async (q, s) => {
+  await authenticated(admin.auth(), q, s, async (_record, uAuth) => {
+    let values = Object.keys(Permission)
+      .filter(async key => {
+        // @ts-ignore
+        let perm = Permission[key] as Permission
+        let b: boolean = false;
+        await checkPermission(s, db.collection("admin"), uAuth, perm, async () => {
+          b = true
+        }, async () => {
+          b = false
+        });
+        return b;
+      })
+      .filter(v => {
+        return Number.isNaN(parseInt(v))
+      });
+    s.status(200).send(addTypeProperty({"permissions": values}, "permissions"));
   });
 });

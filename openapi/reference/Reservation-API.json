@@ -92,12 +92,16 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "reservation": {
-                    "$ref": "#/components/schemas/Reservation"
+                  "event_id": {
+                    "type": "string"
+                  },
+                  "group": {
+                    "$ref": "#/components/schemas/Group"
                   }
                 },
                 "required": [
-                  "reservation"
+                  "event_id",
+                  "group"
                 ]
               }
             }
@@ -117,6 +121,9 @@
                       "enum": [
                         "post-reservation"
                       ]
+                    },
+                    "reservation_id": {
+                      "type": "string"
                     }
                   }
                 }
@@ -296,6 +303,49 @@
             "FirebaseAuthenticationToken": []
           }
         ]
+      }
+    },
+    "/permissions": {
+      "get": {
+        "summary": "Your GET endpoint",
+        "tags": [],
+        "responses": {
+          "200": {
+            "description": "当該Userの権限一覧",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "permissions": {
+                      "type": "array",
+                      "description": "付与されている権限の名前一覧",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "permissions"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/InternalException"
+          },
+          "401": {
+            "$ref": "#/components/responses/UserAuthenticationFailed"
+          }
+        },
+        "operationId": "get-permissions",
+        "security": [
+          {
+            "FirebaseAuthenticationToken": []
+          }
+        ],
+        "description": "Userの権限一覧をリクエストします(基本的にはデバッグ用)"
       }
     }
   },

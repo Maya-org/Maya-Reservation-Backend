@@ -1,12 +1,13 @@
 import {firestore} from "firebase-admin";
 import DocumentSnapshot = firestore.DocumentSnapshot;
 import {Group, groupFromObject} from "./Group";
-import {safeAsReference, safeAsString} from "../../SafeAs";
+import {safeAsReference, safeGet} from "../../SafeAs";
 import {Request} from "firebase-functions";
 import Firestore = firestore.Firestore;
 import DocumentReference = firestore.DocumentReference;
 import CollectionReference = firestore.CollectionReference;
 import {eventFromDoc, ReservableEvent} from "./ReservableEvent";
+import {v4 as uuidv4} from "uuid";
 
 export type Reservation = {
   reservation_id: string;
@@ -38,35 +39,29 @@ export async function reservationFromDocument(document: DocumentSnapshot): Promi
 
 export async function reservationFromRequestBody(req: Request, db: Firestore): Promise<Reservation | null> {
   let jsonBody;
-  try{
+  try {
     jsonBody = JSON.parse(req.body);
-  }catch (e){
+  } catch (e) {
     return null;
   }
 
-  let reservation_id: string | undefined = jsonBody["reservation_id"];
-  let event_obj: any | undefined = jsonBody["event"];
-  let group_data: Group | null = groupFromObject(jsonBody["group_data"]);
+  let event_id = safeGet(jsonBody, "event_id")
+  let group_data: Group | null = groupFromObject(safeGet(jsonBody, "group"));
 
-  if (reservation_id === undefined || event_obj === undefined || group_data === null) {
-    console.log("reservation_id, event_obj, group_data is undefined,reservation_id:", reservation_id, "event_obj:", event_obj, "group_data:", group_data);
+  if (event_id === undefined || group_data === null) {
+    console.log("event_id, group_data, group_data is undefined,", "event_id:", event_id, "group_data:", group_data);
     return null;
   }
 
-  let event_ref_string: string | undefined = safeAsString(event_obj["event_id"]);
-
-  if (event_ref_string === undefined) {
-    console.log("event_ref_string is undefined");
-    return null;
-  }
-
-  let ref: DocumentReference = db.collection("events").doc(event_ref_string);
+  let ref: DocumentReference = db.collection("events").doc(event_id);
   let event = await eventFromDoc(await ref.get());
 
   if (event === null) {
     console.log("event is null");
     return null;
   }
+
+  let reservation_id: string = uuidv4();
 
   return {
     reservation_id: reservation_id,
@@ -76,17 +71,17 @@ export async function reservationFromRequestBody(req: Request, db: Firestore): P
   }
 }
 
-export async function reservationToCollection(reservation: Reservation, reservationCollection: CollectionReference,eventCollection:CollectionReference):Promise<boolean>{
-  let doc = await reservationCollection.doc(reservation.reservation_id);
+export async function reservationToCollection(reservation: Reservation, reservationCollection: CollectionReference, eventCollection: CollectionReference): Promise<boolean> {
+  let doc = reservationCollection.doc(reservation.reservation_id);
 
-  let eventRef = await eventCollection.doc(reservation.event.event_id);
+  let eventRef = eventCollection.doc(reservation.event.event_id);
   if ((await eventRef.get()).exists) {
     await doc.set({
       event: eventRef,
       group_data: reservation.group_data
     })
     return true;
-  }else{
+  } else {
     return false;
   }
 }

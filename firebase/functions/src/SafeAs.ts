@@ -49,3 +49,12 @@ export function safeAsDocumentSnapshot(value: any): DocumentSnapshot | undefined
   }
   return value as DocumentSnapshot;
 }
+
+export function safeGet(obj:any | undefined,key:string) : any | undefined{
+  if (obj !== undefined){
+    return obj[key];
+  }
+  else {
+    return undefined
+  }
+}
