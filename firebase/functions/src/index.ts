@@ -126,6 +126,12 @@ export const reserve = functions.https.onRequest(async (q, s) => {
             res.status(400).send(
               toInternalException("InternalException@AlreadyReserved", "すでに予約済みです")
             );
+            break;
+          case ReservationStatus.INVALID_GROUP:
+            res.status(400).send(
+              toInternalException("InternalException@InvalidGroup", "グループ人数が不正です")
+            );
+            break;
         }
       }
     });

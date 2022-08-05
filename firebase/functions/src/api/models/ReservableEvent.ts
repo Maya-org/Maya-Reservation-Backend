@@ -63,6 +63,11 @@ export function eventFromDoc(doc: DocumentSnapshot): ReservableEvent | null {
  * @param group
  */
 export async function reserveEvent(db: Firestore, eventsCollection: CollectionReference, user: UserRecord, event: ReservableEvent, group: Group): Promise<ReservationStatus> {
+  if(group.headcount < 1){
+    // 人数が1人未満の場合は予約できない
+    return ReservationStatus.INVALID_GROUP;
+  }
+
   // Check if the user is already reserved at same group data
   let docReference = await db.collection("reservations").doc(user.uid).collection("reservations").get()
   const reservations = (await Promise.all(docReference.docs.map(async doc => {
@@ -117,5 +122,6 @@ export enum ReservationStatus {
   CAPACITY_OVER,
   EVENT_NOT_FOUND,
   TRANSACTION_FAILED,
-  ALREADY_RESERVED
+  ALREADY_RESERVED,
+  INVALID_GROUP
 }
