@@ -63,7 +63,7 @@ export function eventFromDoc(doc: DocumentSnapshot): ReservableEvent | null {
  * @param group
  */
 export async function reserveEvent(db: Firestore, eventsCollection: CollectionReference, user: UserRecord, event: ReservableEvent, group: Group): Promise<ReservationStatus> {
-  if(group.headcount < 1){
+  if (group.headcount < 1) {
     // 人数が1人未満の場合は予約できない
     return ReservationStatus.INVALID_GROUP;
   }
@@ -80,11 +80,31 @@ export async function reserveEvent(db: Firestore, eventsCollection: CollectionRe
   }
 
   // Check if the event is available and update the taken_capacity
+  return addTakenCapacity(db, eventsCollection, event, group.headcount);
+}
+
+export enum ReservationStatus {
+  RESERVED,
+  CAPACITY_OVER,
+  EVENT_NOT_FOUND,
+  TRANSACTION_FAILED,
+  ALREADY_RESERVED,
+  INVALID_GROUP
+}
+
+/**
+ * increment the taken_capacity of the event
+ * @param db
+ * @param eventsCollection
+ * @param event
+ * @param toAdd
+ */
+export async function addTakenCapacity(db: Firestore, eventsCollection: CollectionReference, event: ReservableEvent, toAdd: number): Promise<ReservationStatus> {
   try {
     return await db.runTransaction(async (t) => {
       const ref = eventsCollection.doc(event.event_id);
       const data = await ref.get();
-      const new_taken_capacity = data.get("taken_capacity") as number + group.headcount;
+      const new_taken_capacity = Math.max(data.get("taken_capacity") as number + toAdd, 0); // TODO should be error when the value is less than 0
       const capacity: number | undefined = safeAsNumber(data.get("capacity"));
       if (data.exists) {
         if (capacity !== undefined) {
@@ -115,13 +135,4 @@ export async function reserveEvent(db: Firestore, eventsCollection: CollectionRe
     // トランザクション失敗
     return ReservationStatus.TRANSACTION_FAILED;
   }
-}
-
-export enum ReservationStatus {
-  RESERVED,
-  CAPACITY_OVER,
-  EVENT_NOT_FOUND,
-  TRANSACTION_FAILED,
-  ALREADY_RESERVED,
-  INVALID_GROUP
 }

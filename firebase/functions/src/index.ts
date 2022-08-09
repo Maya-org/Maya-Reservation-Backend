@@ -14,6 +14,8 @@ import {
   reservationFromRequestBody,
   reservationToCollection
 } from "./api/models/Reservation";
+import {modifyReservation, ModifyStatus} from "./Modify";
+import {Group, groupFromObject} from "./api/models/Group";
 import Timestamp = firestore.Timestamp;
 
 admin.initializeApp();
@@ -166,5 +168,47 @@ export const permissions = functions.https.onRequest(async (q, s) => {
         return Number.isNaN(parseInt(v))
       });
     s.status(200).send(addTypeProperty({"permissions": values}, "permissions"));
+  });
+});
+
+export const modify = functions.https.onRequest(async (q, s) => {
+  await onPOST(q, s, async (req, res) => {
+    await authenticated(admin.auth(), q, s, async (record, _) => {
+      let json = JSON.parse(req.body);
+      let reservation_id: string | undefined = safeAsString(json["reservation_id"]);
+      let group: Group | null = groupFromObject(json["group"]);
+      if (reservation_id === undefined || group === null) {
+        res.status(400).send(
+          toInternalException("InternalException", "予約変更情報が不足しています : " + JSON.stringify(json))
+        );
+        return;
+      }
+      let status: ModifyStatus = await modifyReservation(db, db.collection("reservations").doc(record.uid).collection("reservations"), db.collection("events"), record, reservation_id, group);
+      switch (status) {
+        case ModifyStatus.MODIFIED:
+          res.status(200).send(addTypeProperty({"reservation_id": reservation_id}, "modify"));
+          break;
+        case ModifyStatus.RESERVATION_NOT_FOUND:
+          res.status(400).send(
+            toInternalException("InternalException@ReservationNotFound", "指定された予約が存在しません")
+          );
+          break;
+        case ModifyStatus.CAPACITY_OVER:
+          res.status(400).send(
+            toInternalException("InternalException@CapacityOver", "定員オーバーです")
+          );
+          break;
+        case ModifyStatus.INVALID_RESERVATION_DATA:
+          res.status(400).send(
+            toInternalException("InternalException@InvalidReservationData", "見つかった予約情報が不正です")
+          );
+          break;
+        case ModifyStatus.TRANSACTION_FAILED:
+          res.status(400).send(
+            toInternalException("InternalException@TransactionFailed", "予約変更に失敗しました")
+          );
+          break;
+      }
+    });
   });
 });

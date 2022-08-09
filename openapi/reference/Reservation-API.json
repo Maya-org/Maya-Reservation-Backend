@@ -323,10 +323,17 @@
                       "items": {
                         "type": "string"
                       }
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "permissions"
+                      ]
                     }
                   },
                   "required": [
-                    "permissions"
+                    "permissions",
+                    "type"
                   ]
                 }
               }
@@ -346,6 +353,70 @@
           }
         ],
         "description": "Userの権限一覧をリクエストします(基本的にはデバッグ用)"
+      }
+    },
+    "/modify": {
+      "post": {
+        "summary": "Modify Reservation",
+        "operationId": "post-modify",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "Modify"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "type"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/InternalException"
+          },
+          "401": {
+            "$ref": "#/components/responses/UserAuthenticationFailed"
+          }
+        },
+        "description": "一度予約した予約の人数を修正するためのEndPoint",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reservation_id": {
+                    "type": "string",
+                    "description": "当該予約のID"
+                  },
+                  "toUpdate": {
+                    "$ref": "#/components/schemas/Group"
+                  }
+                },
+                "required": [
+                  "reservation_id",
+                  "toUpdate"
+                ]
+              }
+            }
+          },
+          "description": ""
+        },
+        "security": [
+          {
+            "FirebaseAuthenticationToken": []
+          }
+        ]
       }
     }
   },
