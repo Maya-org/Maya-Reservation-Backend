@@ -85,3 +85,12 @@ export async function reservationToCollection(reservation: Reservation, reservat
     return false;
   }
 }
+
+export async function cancelReservationFromCollection(reservation_id: string, reservationCollection: CollectionReference): Promise<boolean> {
+  let doc = reservationCollection.doc(reservation_id);
+  if ((await doc.get()).exists) {
+    await doc.delete();
+    return true;
+  }
+  return false;
+}

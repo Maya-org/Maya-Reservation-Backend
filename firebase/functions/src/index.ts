@@ -21,8 +21,12 @@ import Timestamp = firestore.Timestamp;
 admin.initializeApp();
 const db = admin.firestore();
 
+const usersCollection = db.collection("users");
+const eventsCollection = db.collection("events");
+const reservationsCollection = db.collection("reservations");
+const adminCollection = db.collection("admin");
 
-export const register = functions.https.onRequest(async (q, s) => {
+export const register = functions.region('asia-northeast1').https.onRequest(async (q, s) => {
   await onPOST(q, s, async (req, res) => {
     await authenticated(admin.auth(), req, res, async (_ur, uAuth) => {
       const firstName = safeAsString(req.body.firstName);
@@ -32,7 +36,7 @@ export const register = functions.https.onRequest(async (q, s) => {
       if (firstName === undefined || lastName === undefined) {
         res.status(400).send(toInternalException("InternalException", "名前情報が不足しています"));
       } else {
-        if (await userFromCollection(db.collection("users"), uAuth) != null) {
+        if (await userFromCollection(usersCollection, uAuth) != null) {
           // すでに登録済みのユーザー
           res.status(401).send(toUserAuthenticationFailed("UserAuthenticationFailed@AlreadyRegistered"));
         } else {
@@ -45,7 +49,7 @@ export const register = functions.https.onRequest(async (q, s) => {
               toInternalException("InternalException", "ユーザー情報が不足しています")
             );
           } else {
-            await userToCollection(db.collection("users"), us);
+            await userToCollection(usersCollection, us);
             res.status(200).send(addTypeProperty({}, "register"));
           }
         }
@@ -54,10 +58,10 @@ export const register = functions.https.onRequest(async (q, s) => {
   });
 });
 
-export const user = functions.https.onRequest(async (q, s) => {
+export const user = functions.region('asia-northeast1').https.onRequest(async (q, s) => {
   await onGET(q, s, async (req, res) => {
     await authenticated(admin.auth(), req, res, async (_record, uAuth) => {
-      const us = await userFromCollection(db.collection("users"), uAuth);
+      const us = await userFromCollection(usersCollection, uAuth);
       if (us === null) {
         res.status(404).send(
           toInternalException("InternalException", "ユーザー情報が不足しています")
@@ -73,10 +77,10 @@ export const user = functions.https.onRequest(async (q, s) => {
   });
 });
 
-export const event = functions.https.onRequest(async (q, s) => {
+export const event = functions.region('asia-northeast1').https.onRequest(async (q, s) => {
   await onGET(q, s, async (req, res) => {
     await authenticated(admin.auth(), req, res, async (_record, _uAuth) => {
-      const docReference = await db.collection("events").get();
+      const docReference = await eventsCollection.get();
       const events = docReference.docs.map(doc => {
         return eventFromDoc(doc);
       }).filter(ev => ev !== null) as ReservableEvent[];
@@ -85,7 +89,7 @@ export const event = functions.https.onRequest(async (q, s) => {
   });
 });
 
-export const reserve = functions.https.onRequest(async (q, s) => {
+export const reserve = functions.region('asia-northeast1').https.onRequest(async (q, s) => {
   await onPOST(q, s, async (req, res) => {
     await authenticated(admin.auth(), req, res, async (record, _uAuth) => {
       const reservation = await reservationFromRequestBody(req, db);
@@ -95,12 +99,12 @@ export const reserve = functions.https.onRequest(async (q, s) => {
         );
       } else {
         // Check Event Availability and Update Event Taken_Capacity
-        let reservation_status: ReservationStatus = await reserveEvent(db, db.collection("events"), record, reservation.event, reservation.group_data);
+        let reservation_status: ReservationStatus = await reserveEvent(db, eventsCollection, record, reservation.event, reservation.group_data);
 
         switch (reservation_status) {
           case ReservationStatus.RESERVED:
             // Add Reservation to Reservation Collection
-            let b = await reservationToCollection(reservation, db.collection("reservations").doc(record.uid).collection("reservations"), db.collection("events"));
+            let b = await reservationToCollection(reservation, reservationsCollection.doc(record.uid).collection("reservations"), eventsCollection);
             if (b) {
               res.status(200).send(addTypeProperty({"reservation_id": reservation.reservation_id}, "post-reservation"));
             } else {
@@ -141,7 +145,7 @@ export const reserve = functions.https.onRequest(async (q, s) => {
 
   await onGET(q, s, async (req, res) => {
     await authenticated(admin.auth(), req, res, async (record, _uAuth) => {
-      const docReference = await db.collection("reservations").doc(record.uid).collection("reservations").get();
+      const docReference = await reservationsCollection.doc(record.uid).collection("reservations").get();
       const reservations = (await Promise.all(docReference.docs.map(async doc => {
         return reservationFromDocument(doc);
       }))).filter(ev => ev !== null) as Reservation[];
@@ -150,14 +154,14 @@ export const reserve = functions.https.onRequest(async (q, s) => {
   });
 });
 
-export const permissions = functions.https.onRequest(async (q, s) => {
+export const permissions = functions.region('asia-northeast1').https.onRequest(async (q, s) => {
   await authenticated(admin.auth(), q, s, async (_record, uAuth) => {
     let values = Object.keys(Permission)
       .filter(async key => {
         // @ts-ignore
         let perm = Permission[key] as Permission
         let b: boolean = false;
-        await checkPermission(s, db.collection("admin"), uAuth, perm, async () => {
+        await checkPermission(s, adminCollection, uAuth, perm, async () => {
           b = true
         }, async () => {
           b = false
@@ -171,7 +175,7 @@ export const permissions = functions.https.onRequest(async (q, s) => {
   });
 });
 
-export const modify = functions.https.onRequest(async (q, s) => {
+export const modify = functions.region('asia-northeast1').https.onRequest(async (q, s) => {
   await onPOST(q, s, async (req, res) => {
     await authenticated(admin.auth(), q, s, async (record, _) => {
       let json = JSON.parse(req.body);
@@ -183,7 +187,7 @@ export const modify = functions.https.onRequest(async (q, s) => {
         );
         return;
       }
-      let status: ModifyStatus = await modifyReservation(db, db.collection("reservations").doc(record.uid).collection("reservations"), db.collection("events"), record, reservation_id, group);
+      let status: ModifyStatus = await modifyReservation(db, reservationsCollection.doc(record.uid).collection("reservations"), eventsCollection, record, reservation_id, group);
       switch (status) {
         case ModifyStatus.MODIFIED:
           res.status(200).send(addTypeProperty({"reservation_id": reservation_id}, "modify"));
@@ -208,6 +212,10 @@ export const modify = functions.https.onRequest(async (q, s) => {
             toInternalException("InternalException@TransactionFailed", "予約変更に失敗しました")
           );
           break;
+        case ModifyStatus.CANCELLED:
+          res.status(200).send(
+            addTypeProperty({"reservation_id": reservation_id}, "cancel")
+          );
       }
     });
   });
