@@ -95,12 +95,16 @@
                   "event_id": {
                     "type": "string"
                   },
+                  "ticket_type_id": {
+                    "type": "string"
+                  },
                   "group": {
                     "$ref": "#/components/schemas/Group"
                   }
                 },
                 "required": [
                   "event_id",
+                  "ticket_type_id",
                   "group"
                 ]
               }
@@ -487,12 +491,16 @@
           },
           "group_data": {
             "$ref": "#/components/schemas/Group"
+          },
+          "reserved_ticket_type": {
+            "$ref": "#/components/schemas/TicketType"
           }
         },
         "required": [
           "reservation_id",
           "event",
-          "group_data"
+          "group_data",
+          "reserved_ticket_type"
         ]
       },
       "ReservableEvent": {
@@ -523,13 +531,6 @@
             "type": "number",
             "description": "予約された人数の合計数"
           },
-          "reservations": {
-            "type": "array",
-            "description": "このイベントに対する予約一覧",
-            "items": {
-              "$ref": "#/components/schemas/Reservation"
-            }
-          },
           "required_reservation": {
             "$ref": "#/components/schemas/ReservableEvent"
           },
@@ -547,14 +548,21 @@
             "type": "string",
             "format": "date-time",
             "description": "このイベントが予約できるようになる時間\n\n省略されている場合は常にこのイベントは予約可能"
+          },
+          "reservable_ticket_type": {
+            "type": "array",
+            "description": "このイベントを予約できるチケットの種類一覧",
+            "items": {
+              "$ref": "#/components/schemas/TicketType"
+            }
           }
         },
         "required": [
           "event_id",
           "displayName",
           "taken_capacity",
-          "reservations",
-          "date_start"
+          "date_start",
+          "reservable_ticket_type"
         ]
       },
       "Group": {
@@ -606,6 +614,72 @@
         },
         "required": [
           "type"
+        ]
+      },
+      "TicketType": {
+        "title": "TicketType",
+        "x-stoplight": {
+          "id": "wmg5l4ddxjh9g"
+        },
+        "type": "object",
+        "description": "チケットの種類を定義するオブジェクト",
+        "examples": [
+          {
+            "ticket_type_id": "(random id)",
+            "reservable_group": [
+              {
+                "all_guests": [
+                  {
+                    "type": "Adult"
+                  }
+                ],
+                "headcount": 1
+              },
+              {
+                "all_guests": [
+                  {
+                    "type": "Adult"
+                  },
+                  {
+                    "type": "Adult"
+                  }
+                ],
+                "headcount": 2
+              }
+            ],
+            "display_ticket_name": "一般チケット",
+            "display_ticket_description": "一般のお客様用のチケット",
+            "require_two_factor": false
+          }
+        ],
+        "properties": {
+          "ticket_type_id": {
+            "type": "string"
+          },
+          "reservable_group": {
+            "type": "array",
+            "description": "このチケットのタイプで予約可能な人数の組み合わせ",
+            "items": {
+              "$ref": "#/components/schemas/Group"
+            }
+          },
+          "display_ticket_name": {
+            "type": "string",
+            "description": "チケットの種類の名前"
+          },
+          "display_ticket_description": {
+            "type": "string"
+          },
+          "require_two_factor": {
+            "type": "boolean",
+            "description": "このタイプのチケットを予約する際に、別途認証が必要かどうか"
+          }
+        },
+        "required": [
+          "ticket_type_id",
+          "reservable_group",
+          "display_ticket_name",
+          "require_two_factor"
         ]
       }
     },

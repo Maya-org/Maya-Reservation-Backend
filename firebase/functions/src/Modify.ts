@@ -16,11 +16,12 @@ import Firestore = firestore.Firestore;
  * @param db
  * @param reservationCollection
  * @param eventsCollection
+ * @param ticketCollection
  * @param user
  * @param reservation_id
  * @param toUpdate
  */
-export async function modifyReservation(db: Firestore, reservationCollection: CollectionReference, eventsCollection: CollectionReference, user: UserRecord, reservation_id: string, toUpdate: Group): Promise<ModifyStatus> {
+export async function modifyReservation(db: Firestore, reservationCollection: CollectionReference, eventsCollection: CollectionReference,ticketCollection:CollectionReference, user: UserRecord, reservation_id: string, toUpdate: Group): Promise<ModifyStatus> {
   const reservationSnapShot = await db.collection("reservations").doc(user.uid).collection("reservations").doc(reservation_id).get();
   if (reservationSnapShot.exists) {
     const reservation: Reservation | null = await reservationFromDocument(reservationSnapShot);
@@ -43,8 +44,9 @@ export async function modifyReservation(db: Firestore, reservationCollection: Co
           event: reservation.event,
           group_data: toUpdate,
           member_all: toUpdate.headcount,
-          reservation_id: reservation.reservation_id
-        }, reservationCollection, eventsCollection)
+          reservation_id: reservation.reservation_id,
+          reserved_ticket_type:reservation.reserved_ticket_type
+        }, reservationCollection, eventsCollection,ticketCollection)
         return ModifyStatus.MODIFIED;
       }
     } else {

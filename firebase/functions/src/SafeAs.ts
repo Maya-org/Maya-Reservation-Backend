@@ -58,3 +58,12 @@ export function safeGet(obj:any | undefined,key:string) : any | undefined{
     return undefined
   }
 }
+
+export function safeAsBoolean(value: any): boolean | undefined {
+  if (value === undefined || value === null) {
+    return undefined;
+  } else if (typeof value === "boolean") {
+    return value;
+  }
+  return undefined;
+}

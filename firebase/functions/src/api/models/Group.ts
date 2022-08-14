@@ -1,4 +1,4 @@
-import {Guest, guestFromString} from "./Guest";
+import {Guest, guestFromString, guestTypes} from "./Guest";
 import {firestore} from "firebase-admin";
 import DocumentReference = firestore.DocumentReference;
 
@@ -7,10 +7,35 @@ export type Group = {
   headcount: number;
 }
 
-export async function groupFromDocument(ref: DocumentReference | undefined): Promise<Group | null> {
-  if (ref === undefined) {
-    return null
+export function isSameGroup(one: Group, other: Group): boolean {
+  const one_map = groupToMap(one);
+  const other_map = groupToMap(other);
+  console.log("isSameGroup", one_map, other_map);
+  for (const i in guestTypes) {
+    const type = guestTypes[i];
+    if ((one_map.get(type) || 0) !== (other_map.get(type) || 0)) {
+      console.log("false")
+      return false;
+    }
   }
+  console.log("true")
+  return true;
+}
+
+function groupToMap(group: Group): Map<string, number> {
+  const map = new Map<string, number>();
+  group.all_guests.forEach(guest => {
+    const count = map.get(guest.type) || 0;
+    map.set(guest.type, count + 1);
+  });
+  return map;
+}
+
+/**
+ * 直下にall_guestsがあるReferenceからGroupを作る
+ * @param ref
+ */
+export async function groupFromDocument(ref: DocumentReference): Promise<Group | null> {
   let document = await ref.get();
   let all_guests: Guest[] = (document.get("all_guests") as string[]).map((s) => {
     return guestFromString(s);
@@ -34,7 +59,7 @@ export function groupFromObject(object: any): Group | null {
   }
   let guests = all_guest_array.map((s) => {
     let ss = s["type"];
-    if(ss === undefined){
+    if (ss === undefined) {
       return null;
     }
     return guestFromString(ss);

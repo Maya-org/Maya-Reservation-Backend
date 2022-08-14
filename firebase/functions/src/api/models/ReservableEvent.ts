@@ -7,6 +7,7 @@ import CollectionReference = firestore.CollectionReference;
 import Firestore = firestore.Firestore;
 import {Reservation, reservationFromDocument} from "./Reservation";
 import {UserRecord} from "firebase-admin/lib/auth/user-record";
+import {isAssignable, TicketType, ticketTypeFromDocument} from "./TicketType";
 
 export type ReservableEvent = {
   event_id: string;
@@ -19,11 +20,12 @@ export type ReservableEvent = {
 
   capacity?: number;
   taken_capacity: number;
-  reservations: DocumentReference[];
-  required_reservation?: DocumentReference;
+  required_reservation?: ReservableEvent;
+
+  reservable_ticket_type: TicketType[];
 }
 
-export function eventFromDoc(doc: DocumentSnapshot): ReservableEvent | null {
+export async function eventFromDoc(doc: DocumentSnapshot): Promise<ReservableEvent | null> {
   if (doc.exists) {
     // Eventが存在する場合
     const event_id = doc.ref.id;
@@ -34,8 +36,18 @@ export function eventFromDoc(doc: DocumentSnapshot): ReservableEvent | null {
     const available_at = safeAsString(doc.get("available_at"));
     const capacity = safeAsNumber(doc.get("capacity"));
     const taken_capacity = doc.get("taken_capacity") as number;
-    const reservations = (doc.get("reservations") as string[]).map(ref => safeAsReference(ref)).filter(ref => ref !== undefined) as DocumentReference[];
-    const required_reservation = safeAsReference(doc.get("required_reservation"));
+    const required_reservation_ref = safeAsReference(doc.get("required_reservation"));
+    let required_reservation: ReservableEvent | undefined = undefined;
+    if (required_reservation_ref !== undefined) {
+      let r = await eventFromDoc(await required_reservation_ref.get());
+      if (r !== null) {
+        required_reservation = r;
+      } else {
+        required_reservation = undefined;
+      }
+    }
+    const ticket_types = (doc.get("ticket_type") as string[]).map(ref => safeAsReference(ref)).filter(ref => ref !== undefined) as DocumentReference[];
+    const reservable_ticket_type = (await (Promise.all(ticket_types.map(async ref => ticketTypeFromDocument(await ref.get()))))).filter(type => type !== null) as TicketType[];
 
     return {
       event_id,
@@ -46,8 +58,8 @@ export function eventFromDoc(doc: DocumentSnapshot): ReservableEvent | null {
       available_at,
       capacity,
       taken_capacity,
-      reservations,
-      required_reservation
+      required_reservation,
+      reservable_ticket_type
     }
   }
 
@@ -57,19 +69,34 @@ export function eventFromDoc(doc: DocumentSnapshot): ReservableEvent | null {
 /**
  * 実際に予約処理をする(人数の変更だけ)
  * @param db
+ * @param reservationsCollection
  * @param eventsCollection
+ * @param ticketCollection
  * @param user
  * @param event
  * @param group
+ * @param ticket_type_id
  */
-export async function reserveEvent(db: Firestore, eventsCollection: CollectionReference, user: UserRecord, event: ReservableEvent, group: Group): Promise<ReservationStatus> {
+export async function reserveEvent(db: Firestore, reservationsCollection: CollectionReference, eventsCollection: CollectionReference,ticketCollection:CollectionReference, user: UserRecord, event: ReservableEvent, group: Group, ticket_type_id: string): Promise<ReservationStatus> {
   if (group.headcount < 1) {
     // 人数が1人未満の場合は予約できない
     return ReservationStatus.INVALID_GROUP;
   }
 
+  const ticketType = await ticketTypeFromDocument(await ticketCollection.doc(ticket_type_id).get());
+
+  if (ticketType === null) {
+    return ReservationStatus.INVALID_TICKET_TYPE;
+  }
+
+  if (!isAssignable(ticketType, group)) {
+    return ReservationStatus.INVALID_TICKET_TYPE; // 予約できないチケットタイプ
+  }
+
+  // TODO Check if user is reserved the required event
+
   // Check if the user is already reserved at same group data
-  let docReference = await db.collection("reservations").doc(user.uid).collection("reservations").get()
+  let docReference = await reservationsCollection.doc(user.uid).collection("reservations").get()
   const reservations = (await Promise.all(docReference.docs.map(async doc => {
     return reservationFromDocument(doc);
   }))).filter(ev => ev !== null) as Reservation[];
@@ -89,7 +116,8 @@ export enum ReservationStatus {
   EVENT_NOT_FOUND,
   TRANSACTION_FAILED,
   ALREADY_RESERVED,
-  INVALID_GROUP
+  INVALID_GROUP,
+  INVALID_TICKET_TYPE,
 }
 
 /**

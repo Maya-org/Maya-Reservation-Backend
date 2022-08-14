@@ -2,6 +2,8 @@ export type Guest = {
   type: "Adult" | "Child" | "Parent" | "Student" | "Staff";
 }
 
+export const guestTypes = ["Adult", "Child", "Parent", "Student", "Staff"];
+
 export function guestFromString(type: string): Guest | null {
   switch (type) {
     case "Adult":
@@ -10,7 +12,7 @@ export function guestFromString(type: string): Guest | null {
     case "Student":
     case "Staff":
       return {
-        type: type as "Adult" | "Child" | "Parent" | "Student" | "Staff"
+        type: type
       }
   }
   return null;

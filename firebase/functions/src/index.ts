@@ -25,6 +25,7 @@ const usersCollection = db.collection("users");
 const eventsCollection = db.collection("events");
 const reservationsCollection = db.collection("reservations");
 const adminCollection = db.collection("admin");
+const ticketCollection = db.collection("tickets");
 
 export const register = functions.region('asia-northeast1').https.onRequest(async (q, s) => {
   await onPOST(q, s, async (req, res) => {
@@ -81,9 +82,9 @@ export const event = functions.region('asia-northeast1').https.onRequest(async (
   await onGET(q, s, async (req, res) => {
     await authenticated(admin.auth(), req, res, async (_record, _uAuth) => {
       const docReference = await eventsCollection.get();
-      const events = docReference.docs.map(doc => {
+      const events = (await Promise.all(docReference.docs.map(doc => {
         return eventFromDoc(doc);
-      }).filter(ev => ev !== null) as ReservableEvent[];
+      }))).filter(ev => ev !== null) as ReservableEvent[];
       res.status(200).send(addTypeProperty({"events": events}, "events"));
     });
   });
@@ -92,19 +93,19 @@ export const event = functions.region('asia-northeast1').https.onRequest(async (
 export const reserve = functions.region('asia-northeast1').https.onRequest(async (q, s) => {
   await onPOST(q, s, async (req, res) => {
     await authenticated(admin.auth(), req, res, async (record, _uAuth) => {
-      const reservation = await reservationFromRequestBody(req, db);
+      const reservation = await reservationFromRequestBody(req, eventsCollection, ticketCollection);
       if (reservation === null) {
         res.status(400).send(
           toInternalException("InternalException", "予約情報が不足しています")
         );
       } else {
         // Check Event Availability and Update Event Taken_Capacity
-        let reservation_status: ReservationStatus = await reserveEvent(db, eventsCollection, record, reservation.event, reservation.group_data);
+        let reservation_status: ReservationStatus = await reserveEvent(db, reservationsCollection, eventsCollection, ticketCollection, record, reservation.event, reservation.group_data, reservation.reserved_ticket_type.ticket_type_id);
 
         switch (reservation_status) {
           case ReservationStatus.RESERVED:
             // Add Reservation to Reservation Collection
-            let b = await reservationToCollection(reservation, reservationsCollection.doc(record.uid).collection("reservations"), eventsCollection);
+            let b = await reservationToCollection(reservation, reservationsCollection.doc(record.uid).collection("reservations"), eventsCollection, ticketCollection);
             if (b) {
               res.status(200).send(addTypeProperty({"reservation_id": reservation.reservation_id}, "post-reservation"));
             } else {
@@ -136,6 +137,11 @@ export const reserve = functions.region('asia-northeast1').https.onRequest(async
           case ReservationStatus.INVALID_GROUP:
             res.status(400).send(
               toInternalException("InternalException@InvalidGroup", "グループ人数が不正です")
+            );
+            break;
+          case ReservationStatus.INVALID_TICKET_TYPE:
+            res.status(400).send(
+              toInternalException("InternalException@InvalidTicketType", "指定されたチケットタイプはこのイベントでは予約できません")
             );
             break;
         }
@@ -187,7 +193,7 @@ export const modify = functions.region('asia-northeast1').https.onRequest(async 
         );
         return;
       }
-      let status: ModifyStatus = await modifyReservation(db, reservationsCollection.doc(record.uid).collection("reservations"), eventsCollection, record, reservation_id, group);
+      let status: ModifyStatus = await modifyReservation(db, reservationsCollection.doc(record.uid).collection("reservations"), eventsCollection, ticketCollection, record, reservation_id, group);
       switch (status) {
         case ModifyStatus.MODIFIED:
           res.status(200).send(addTypeProperty({"reservation_id": reservation_id}, "modify"));
