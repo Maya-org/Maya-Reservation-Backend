@@ -433,6 +433,122 @@
           }
         ]
       }
+    },
+    "/check": {
+      "post": {
+        "summary": "Check",
+        "operationId": "post-check",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "Check"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "type"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/InternalException"
+          },
+          "401": {
+            "$ref": "#/components/responses/UserAuthenticationFailed"
+          }
+        },
+        "description": "チェックイン/アウト用のエンドポイント",
+        "security": [
+          {
+            "FirebaseAuthenticationToken": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "operation": {
+                    "type": "string",
+                    "enum": [
+                      "Enter",
+                      "Exit"
+                    ],
+                    "description": "Enter/Exit"
+                  },
+                  "auth_token": {
+                    "type": "string",
+                    "description": "当該ユーザーのToken"
+                  },
+                  "room_id": {
+                    "type": "string",
+                    "description": "入場する部屋のID"
+                  },
+                  "reservation_id": {
+                    "type": "string",
+                    "description": "入退場する際のチケットに紐づいた予約のID"
+                  }
+                },
+                "required": [
+                  "operation",
+                  "auth_token",
+                  "room_id",
+                  "reservation_id"
+                ]
+              }
+            }
+          },
+          "description": ""
+        }
+      }
+    },
+    "/rooms": {
+      "get": {
+        "summary": "Your GET endpoint",
+        "tags": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "rooms": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Room"
+                      }
+                    }
+                  },
+                  "required": [
+                    "rooms"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "get-rroms",
+        "description": "部屋一覧を取得します(基本入場管理用)",
+        "security": [
+          {
+            "FirebaseAuthenticationToken": []
+          }
+        ]
+      },
+      "parameters": []
     }
   },
   "components": {
@@ -691,6 +807,31 @@
           "reservable_group",
           "display_ticket_name",
           "require_two_factor"
+        ]
+      },
+      "Room": {
+        "title": "Room",
+        "x-stoplight": {
+          "id": "qxoxyrz5nfa0r"
+        },
+        "type": "object",
+        "properties": {
+          "room_id": {
+            "type": "string",
+            "description": "部屋のID"
+          },
+          "capacity": {
+            "type": "number",
+            "description": "部屋の許容人数(超えてもなにもないけど)"
+          },
+          "display_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "room_id",
+          "capacity",
+          "display_name"
         ]
       }
     },

@@ -3,7 +3,7 @@ import * as admin from "firebase-admin";
 import {firestore} from "firebase-admin";
 import {toUser, userFromCollection, userToCollection} from "./api/models/User";
 import {safeAsString} from "./SafeAs";
-import {authenticated, checkPermission, Permission} from "./Auth";
+import {authenticated, checkPermission, Permission, verifyToken} from "./Auth";
 import {toUserAuthenticationFailed} from "./api/responces/UserAuthenticationFailed";
 import {toInternalException} from "./api/responces/InternalException";
 import {eventFromDoc, ReservableEvent, ReservationStatus, reserveEvent} from "./api/models/ReservableEvent";
@@ -17,6 +17,8 @@ import {
 import {cancelReservation, modifyReservation, ModifyStatus} from "./Modify";
 import {Group, groupFromObject} from "./api/models/Group";
 import Timestamp = firestore.Timestamp;
+import {checkInOut, operationFromString} from "./Track";
+import {roomById} from "./api/models/Room";
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -26,6 +28,8 @@ const eventsCollection = db.collection("events");
 const reservationsCollection = db.collection("reservations");
 const adminCollection = db.collection("admin");
 const ticketCollection = db.collection("tickets");
+const roomsCollection = db.collection("rooms");
+const trackCollection = db.collection("track");
 
 export const register = functions.region('asia-northeast1').https.onRequest(async (q, s) => {
   await onPOST(q, s, async (req, res) => {
@@ -256,6 +260,76 @@ export const modify = functions.region('asia-northeast1').https.onRequest(async 
           );
           break;
       }
+    });
+  });
+});
+
+export const check = functions.region('asia-northeast1').https.onRequest(async (q, s) => {
+  await onPOST(q, s, async (req, res) => {
+    await authenticated(admin.auth(), q, s, async (_, __) => {
+      const json = JSON.parse(req.body);
+      const operation_str = safeAsString(json["operation"]);
+      const auth_token = safeAsString(json["auth_token"]);
+      const room_id = safeAsString(json["room_id"]);
+      const reservation_id = safeAsString(json["reservation_id"]);
+
+      if (operation_str === undefined || auth_token === undefined || room_id === undefined || reservation_id === undefined) {
+        res.status(400).send(
+          toInternalException("InternalException", "チェックイン/アウト情報が不足しています")
+        );
+        return;
+      }
+
+      const operation = operationFromString(operation_str);
+      if (operation == null) {
+        res.status(400).send(
+          toInternalException("InternalException", "チェックイン/アウトオペレーション情報が不正です")
+        );
+        return;
+      }
+
+      const targetRecord = await verifyToken(admin.auth(), auth_token);
+      if (targetRecord === undefined) {
+        res.status(400).send(
+          toInternalException("InternalException", "当該ユーザーの認証に失敗しました")
+        );
+        return;
+      }
+
+      const room = await roomById(roomsCollection, room_id);
+      if (room === null) {
+        res.status(400).send(
+          toInternalException("InternalException", "指定された部屋が存在しません")
+        );
+        return;
+      }
+
+      const reservation = await reservationFromDocument(await reservationsCollection.doc(targetRecord.uid).collection("reservations").doc(reservation_id).get());
+      if (reservation === null) {
+        res.status(400).send(
+          toInternalException("InternalException", "指定された予約が存在しません")
+        );
+        return;
+      }
+      const result = await checkInOut(operation, targetRecord, room, reservation, trackCollection, roomsCollection);
+      if (result) {
+        res.status(200).send(addTypeProperty({}, "check"));
+      }else{
+        res.status(400).send(
+          toInternalException("InternalException", "このチケットでは入場出来ません")
+        );
+      }
+    });
+  });
+});
+
+export const rooms = functions.region('asia-northeast1').https.onRequest(async (q, s) => {
+  await onGET(q, s, async (_, res) => {
+    await authenticated(admin.auth(), q, s, async (__, ___) => {
+      const rs = await Promise.all((await (roomsCollection.get())).docs.map(async (doc) => {
+        return roomById(roomsCollection, doc.id);
+      }));
+      res.status(200).send(addTypeProperty({"rooms": rs}, "rooms"));
     });
   });
 });
