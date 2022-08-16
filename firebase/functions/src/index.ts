@@ -14,7 +14,7 @@ import {
   reservationFromRequestBody,
   reservationToCollection
 } from "./api/models/Reservation";
-import {modifyReservation, ModifyStatus} from "./Modify";
+import {cancelReservation, modifyReservation, ModifyStatus} from "./Modify";
 import {Group, groupFromObject} from "./api/models/Group";
 import Timestamp = firestore.Timestamp;
 
@@ -105,7 +105,7 @@ export const reserve = functions.region('asia-northeast1').https.onRequest(async
         switch (reservation_status) {
           case ReservationStatus.RESERVED:
             // Add Reservation to Reservation Collection
-            let b = await reservationToCollection(reservation, reservationsCollection.doc(record.uid).collection("reservations"), eventsCollection, ticketCollection);
+            let b = await reservationToCollection(reservation,record, reservationsCollection, eventsCollection, ticketCollection);
             if (b) {
               res.status(200).send(addTypeProperty({"reservation_id": reservation.reservation_id}, "post-reservation"));
             } else {
@@ -186,17 +186,38 @@ export const modify = functions.region('asia-northeast1').https.onRequest(async 
     await authenticated(admin.auth(), q, s, async (record, _) => {
       let json = JSON.parse(req.body);
       let reservation_id: string | undefined = safeAsString(json["reservation_id"]);
-      let group: Group | null = groupFromObject(json["group"]);
-      if (reservation_id === undefined || group === null) {
+      if (reservation_id === undefined) {
         res.status(400).send(
-          toInternalException("InternalException", "予約変更情報が不足しています : " + JSON.stringify(json))
+          toInternalException("InternalException", "予約IDが不足しています")
         );
         return;
       }
-      let status: ModifyStatus = await modifyReservation(db, reservationsCollection.doc(record.uid).collection("reservations"), eventsCollection, ticketCollection, record, reservation_id, group);
+      const toUpdate_ticket_type_id = safeAsString(json["toUpdate_ticket_type_id"]);
+      const toUpdateObj = json["toUpdate"];
+      let status: ModifyStatus | undefined = undefined;
+      let type: "cancel" | "modify" | undefined = undefined;
+
+      if (toUpdateObj == undefined || toUpdate_ticket_type_id == undefined) {
+        // キャンセル
+        status = await cancelReservation(db, eventsCollection, reservationsCollection, record, reservation_id);
+        type = "cancel";
+      } else {
+        // 予約変更
+        let toUpdate: Group | null = groupFromObject(json["toUpdate"]);
+        if (toUpdate === null) {
+          res.status(400).send(
+            toInternalException("InternalException", "予約変更情報が不足しています : " + JSON.stringify(json))
+          );
+          return;
+        }
+        status = await modifyReservation(db, reservationsCollection, eventsCollection, ticketCollection, record, reservation_id, toUpdate, toUpdate_ticket_type_id);
+        type = "modify";
+      }
+
       switch (status) {
         case ModifyStatus.MODIFIED:
-          res.status(200).send(addTypeProperty({"reservation_id": reservation_id}, "modify"));
+        case ModifyStatus.CANCELLED:
+          res.status(200).send(addTypeProperty({"reservation_id": reservation_id}, type));
           break;
         case ModifyStatus.RESERVATION_NOT_FOUND:
           res.status(400).send(
@@ -218,10 +239,11 @@ export const modify = functions.region('asia-northeast1').https.onRequest(async 
             toInternalException("InternalException@TransactionFailed", "予約変更に失敗しました")
           );
           break;
-        case ModifyStatus.CANCELLED:
-          res.status(200).send(
-            addTypeProperty({"reservation_id": reservation_id}, "cancel")
+        case ModifyStatus.INVALID_MODIFY_DATA:
+          res.status(400).send(
+            toInternalException("InternalException@InvalidModifyData", "予約変更情報が不正です")
           );
+          break;
       }
     });
   });

@@ -403,13 +403,16 @@
                     "type": "string",
                     "description": "当該予約のID"
                   },
+                  "toUpdate_ticket_type_id": {
+                    "type": "string",
+                    "description": "更新する先のチケットタイプ\n\n省略した場合はキャンセル処理になる"
+                  },
                   "toUpdate": {
-                    "$ref": "#/components/schemas/Group"
+                    "$ref": "#/components/schemas/Guest"
                   }
                 },
                 "required": [
-                  "reservation_id",
-                  "toUpdate"
+                  "reservation_id"
                 ]
               }
             }

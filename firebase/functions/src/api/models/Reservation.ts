@@ -8,6 +8,7 @@ import CollectionReference = firestore.CollectionReference;
 import {eventFromDoc, ReservableEvent} from "./ReservableEvent";
 import {v4 as uuidv4} from "uuid";
 import {TicketType, ticketTypeFromDocument} from "./TicketType";
+import {UserRecord} from "firebase-admin/lib/auth/user-record";
 
 
 export type Reservation = {
@@ -88,8 +89,8 @@ export async function reservationFromRequestBody(req: Request, eventsCollection:
   }
 }
 
-export async function reservationToCollection(reservation: Reservation, reservationCollection: CollectionReference, eventCollection: CollectionReference,ticketCollection:CollectionReference): Promise<boolean> {
-  let doc = reservationCollection.doc(reservation.reservation_id);
+export async function reservationToCollection(reservation: Reservation, user: UserRecord, reservationCollection: CollectionReference, eventCollection: CollectionReference, ticketCollection: CollectionReference): Promise<boolean> {
+  let doc = reservationCollection.doc(user.uid).collection("reservations").doc(reservation.reservation_id);
 
   let eventRef = eventCollection.doc(reservation.event.event_id);
   let ticket_type_ref = ticketCollection.doc(reservation.reserved_ticket_type.ticket_type_id);
@@ -105,8 +106,8 @@ export async function reservationToCollection(reservation: Reservation, reservat
   }
 }
 
-export async function cancelReservationFromCollection(reservation_id: string, reservationCollection: CollectionReference): Promise<boolean> {
-  let doc = reservationCollection.doc(reservation_id);
+export async function cancelReservationFromCollection(user:UserRecord,reservation_id: string, reservationCollection: CollectionReference): Promise<boolean> {
+  let doc = reservationCollection.doc(user.uid).collection("reservations").doc(reservation_id);
   if ((await doc.get()).exists) {
     await doc.delete();
     return true;

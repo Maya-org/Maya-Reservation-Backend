@@ -1,3 +1,5 @@
+const {error} = require("firebase-functions/lib/logger");
+
 export function findFirst<T>(arr: Array<T>, predicate: (item: T) => boolean): T | undefined {
   for (const item of arr) {
     if (predicate(item)) {
@@ -14,4 +16,8 @@ export function any<T>(arr: Array<T>, predicate: (item: T) => boolean): boolean 
     }
   }
   return false;
+}
+
+export function errorGCP(...args: any[]) {
+  error(args);
 }
