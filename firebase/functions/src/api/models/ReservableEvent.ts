@@ -7,7 +7,7 @@ import CollectionReference = firestore.CollectionReference;
 import Firestore = firestore.Firestore;
 import {Reservation, reservationFromDocument} from "./Reservation";
 import {UserRecord} from "firebase-admin/lib/auth/user-record";
-import {isAssignable, TicketType, ticketTypeFromDocument} from "./TicketType";
+import {getTwoFactorKey, isAssignable, TicketType, ticketTypeFromDocument} from "./TicketType";
 
 export type ReservableEvent = {
   event_id: string;
@@ -77,7 +77,7 @@ export async function eventFromDoc(doc: DocumentSnapshot): Promise<ReservableEve
  * @param group
  * @param ticket_type_id
  */
-export async function reserveEvent(db: Firestore, reservationsCollection: CollectionReference, eventsCollection: CollectionReference,ticketCollection:CollectionReference, user: UserRecord, event: ReservableEvent, group: Group, ticket_type_id: string): Promise<ReservationStatus> {
+export async function reserveEvent(db: Firestore, reservationsCollection: CollectionReference, eventsCollection: CollectionReference,ticketCollection:CollectionReference, user: UserRecord, event: ReservableEvent, group: Group, ticket_type_id: string,two_factor_key:string | undefined): Promise<ReservationStatus> {
   if (group.headcount < 1) {
     // 人数が1人未満の場合は予約できない
     return ReservationStatus.INVALID_GROUP;
@@ -91,6 +91,14 @@ export async function reserveEvent(db: Firestore, reservationsCollection: Collec
 
   if (!isAssignable(ticketType, group)) {
     return ReservationStatus.INVALID_TICKET_TYPE; // 予約できないチケットタイプ
+  }
+
+  const ticket_two_factor_key = await getTwoFactorKey(ticketCollection,ticketType)
+  if(ticket_two_factor_key != undefined){
+    // 2FAが必要な場合
+    if(ticket_two_factor_key !== two_factor_key){
+      return ReservationStatus.INVALID_TWO_FACTOR_KEY;
+    }
   }
 
   // TODO Check if user is reserved the required event
@@ -118,6 +126,7 @@ export enum ReservationStatus {
   ALREADY_RESERVED,
   INVALID_GROUP,
   INVALID_TICKET_TYPE,
+  INVALID_TWO_FACTOR_KEY,
 }
 
 /**

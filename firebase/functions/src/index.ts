@@ -100,12 +100,12 @@ export const reserve = functions.region('asia-northeast1').https.onRequest(async
         );
       } else {
         // Check Event Availability and Update Event Taken_Capacity
-        let reservation_status: ReservationStatus = await reserveEvent(db, reservationsCollection, eventsCollection, ticketCollection, record, reservation.event, reservation.group_data, reservation.reserved_ticket_type.ticket_type_id);
+        let reservation_status: ReservationStatus = await reserveEvent(db, reservationsCollection, eventsCollection, ticketCollection, record, reservation.event, reservation.group_data, reservation.reserved_ticket_type.ticket_type_id, reservation.two_factor_key);
 
         switch (reservation_status) {
           case ReservationStatus.RESERVED:
             // Add Reservation to Reservation Collection
-            let b = await reservationToCollection(reservation,record, reservationsCollection, eventsCollection, ticketCollection);
+            let b = await reservationToCollection(reservation, record, reservationsCollection, eventsCollection, ticketCollection);
             if (b) {
               res.status(200).send(addTypeProperty({"reservation_id": reservation.reservation_id}, "post-reservation"));
             } else {
@@ -142,6 +142,11 @@ export const reserve = functions.region('asia-northeast1').https.onRequest(async
           case ReservationStatus.INVALID_TICKET_TYPE:
             res.status(400).send(
               toInternalException("InternalException@InvalidTicketType", "指定されたチケットタイプはこのイベントでは予約できません")
+            );
+            break;
+          case ReservationStatus.INVALID_TWO_FACTOR_KEY:
+            res.status(400).send(
+              toInternalException("InternalException@InvalidTwoFactorKey", "2FAキーが不正です")
             );
             break;
         }
@@ -194,6 +199,7 @@ export const modify = functions.region('asia-northeast1').https.onRequest(async 
       }
       const toUpdate_ticket_type_id = safeAsString(json["toUpdate_ticket_type_id"]);
       const toUpdateObj = json["toUpdate"];
+      const two_factor_key = safeAsString(json["two_factor_key"]);
       let status: ModifyStatus | undefined = undefined;
       let type: "cancel" | "modify" | undefined = undefined;
 
@@ -210,7 +216,7 @@ export const modify = functions.region('asia-northeast1').https.onRequest(async 
           );
           return;
         }
-        status = await modifyReservation(db, reservationsCollection, eventsCollection, ticketCollection, record, reservation_id, toUpdate, toUpdate_ticket_type_id);
+        status = await modifyReservation(db, reservationsCollection, eventsCollection, ticketCollection, record, reservation_id, toUpdate, toUpdate_ticket_type_id, two_factor_key);
         type = "modify";
       }
 
@@ -242,6 +248,11 @@ export const modify = functions.region('asia-northeast1').https.onRequest(async 
         case ModifyStatus.INVALID_MODIFY_DATA:
           res.status(400).send(
             toInternalException("InternalException@InvalidModifyData", "予約変更情報が不正です")
+          );
+          break;
+        case ModifyStatus.INVALID_TWO_FACTOR_KEY:
+          res.status(400).send(
+            toInternalException("InternalException@InvalidTwoFactorKey", "2FAキーが不正です")
           );
           break;
       }

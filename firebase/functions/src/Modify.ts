@@ -11,7 +11,7 @@ import {addTakenCapacity, ReservationStatus} from "./api/models/ReservableEvent"
 import CollectionReference = firestore.CollectionReference;
 import Firestore = firestore.Firestore;
 import {errorGCP} from "./util";
-import {isAssignable, TicketType, ticketTypeFromDocument} from "./api/models/TicketType";
+import {getTwoFactorKey, isAssignable, TicketType, ticketTypeFromDocument} from "./api/models/TicketType";
 
 /**
  * Modify/Delete a reservation.
@@ -24,7 +24,7 @@ import {isAssignable, TicketType, ticketTypeFromDocument} from "./api/models/Tic
  * @param toUpdate
  * @param toUpdate_ticket_type_id
  */
-export async function modifyReservation(db: Firestore, reservationCollection: CollectionReference, eventsCollection: CollectionReference, ticketCollection: CollectionReference, user: UserRecord, reservation_id: string, toUpdate: Group, toUpdate_ticket_type_id: string): Promise<ModifyStatus> {
+export async function modifyReservation(db: Firestore, reservationCollection: CollectionReference, eventsCollection: CollectionReference, ticketCollection: CollectionReference, user: UserRecord, reservation_id: string, toUpdate: Group, toUpdate_ticket_type_id: string, two_factor_key: string | undefined): Promise<ModifyStatus> {
   if (toUpdate.headcount === 0) {
     errorGCP("CancelのリクエストなのにModifyが呼ばれた");
     return ModifyStatus.INVALID_MODIFY_DATA;
@@ -38,6 +38,14 @@ export async function modifyReservation(db: Firestore, reservationCollection: Co
   if (!isAssignable(ticket_type, toUpdate)) {
     // 予約可能グループにない場合
     return ModifyStatus.INVALID_MODIFY_DATA;
+  }
+  const ticket_two_factor_key = await getTwoFactorKey(ticketCollection,ticket_type)
+  if(ticket_two_factor_key!= null){
+    // 2FAが有効な場合
+    if(ticket_two_factor_key !== two_factor_key){
+      // 2FAが違う場合
+      return ModifyStatus.INVALID_TWO_FACTOR_KEY;
+    }
   }
   const reservationSnapShot = await (reservationCollection.doc(user.uid).collection("reservations").doc(reservation_id).get());
   if (reservationSnapShot.exists) {
@@ -57,8 +65,8 @@ export async function modifyReservation(db: Firestore, reservationCollection: Co
         group_data: toUpdate,
         member_all: toUpdate.headcount,
         reservation_id: reservation.reservation_id,
-        reserved_ticket_type: reservation.reserved_ticket_type
-      },user, reservationCollection, eventsCollection, ticketCollection)
+        reserved_ticket_type: ticket_type
+      }, user, reservationCollection, eventsCollection, ticketCollection)
       return ModifyStatus.MODIFIED;
     } else {
       // 予約データが壊れてる
@@ -110,7 +118,8 @@ export enum ModifyStatus {
   INVALID_RESERVATION_DATA,
   RESERVATION_NOT_FOUND,
   CANCELLED,
-  INVALID_MODIFY_DATA
+  INVALID_MODIFY_DATA,
+  INVALID_TWO_FACTOR_KEY
 }
 
 /**
@@ -135,7 +144,7 @@ export async function cancelReservation(db: Firestore, eventsCollection: Collect
         return updateResult;
       } else {
         // 予約データを削除
-        await cancelReservationFromCollection(user,reservation.reservation_id, reservationCollection);
+        await cancelReservationFromCollection(user, reservation.reservation_id, reservationCollection);
         return ModifyStatus.CANCELLED;
       }
     } else {

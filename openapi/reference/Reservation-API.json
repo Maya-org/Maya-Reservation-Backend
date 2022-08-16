@@ -100,6 +100,10 @@
                   },
                   "group": {
                     "$ref": "#/components/schemas/Group"
+                  },
+                  "two_factor_key": {
+                    "type": "string",
+                    "description": "二段階認証がこのイベントの予約に必要な場合、キーコードを送信する"
                   }
                 },
                 "required": [
@@ -409,6 +413,10 @@
                   },
                   "toUpdate": {
                     "$ref": "#/components/schemas/Guest"
+                  },
+                  "two_factor_key": {
+                    "type": "string",
+                    "description": "二段階認証がこのイベントの予約に必要な場合、キーコードを送信する"
                   }
                 },
                 "required": [

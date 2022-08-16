@@ -67,3 +67,11 @@ export function safeAsBoolean(value: any): boolean | undefined {
   }
   return undefined;
 }
+
+export function mapUndefinedToNull<T>(obj:T | null | undefined): T | null {
+  if (obj === undefined) {
+    return null;
+  } else {
+    return obj;
+  }
+}

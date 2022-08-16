@@ -17,6 +17,7 @@ export type Reservation = {
   member_all?: number;
   group_data: Group;
   reserved_ticket_type: TicketType;
+  two_factor_key?: string;
 }
 
 export async function reservationFromDocument(document: DocumentSnapshot): Promise<Reservation | null> {
@@ -77,7 +78,7 @@ export async function reservationFromRequestBody(req: Request, eventsCollection:
     console.log("ticket_type is null");
     return null;
   }
-
+  let two_factor_key: string | undefined = safeGet(jsonBody, "two_factor_key");
   let reservation_id: string = uuidv4();
 
   return {
@@ -85,7 +86,8 @@ export async function reservationFromRequestBody(req: Request, eventsCollection:
     event,
     member_all: group_data.headcount,
     group_data,
-    reserved_ticket_type: ticket_type
+    reserved_ticket_type: ticket_type,
+    two_factor_key
   }
 }
 
@@ -106,7 +108,7 @@ export async function reservationToCollection(reservation: Reservation, user: Us
   }
 }
 
-export async function cancelReservationFromCollection(user:UserRecord,reservation_id: string, reservationCollection: CollectionReference): Promise<boolean> {
+export async function cancelReservationFromCollection(user: UserRecord, reservation_id: string, reservationCollection: CollectionReference): Promise<boolean> {
   let doc = reservationCollection.doc(user.uid).collection("reservations").doc(reservation_id);
   if ((await doc.get()).exists) {
     await doc.delete();

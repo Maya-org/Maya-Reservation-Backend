@@ -2,6 +2,8 @@ import {Group, groupFromObject, isSameGroup} from "./Group";
 import {DocumentSnapshot} from "firebase-functions/lib/providers/firestore";
 import {safeAsBoolean, safeAsString} from "../../SafeAs";
 import {any} from "../../util";
+import {firestore} from "firebase-admin";
+import CollectionReference = firestore.CollectionReference;
 
 export type TicketType = {
   ticket_type_id: string;
@@ -26,9 +28,9 @@ export async function ticketTypeFromDocument(document: DocumentSnapshot): Promis
   const require_two_factor = safeAsBoolean(document.get("require_two_factor"));
   let reservable_group: Group[] = [];
 
-  for(const key in Object.keys(document.get("reservable_group"))){
+  for (const key in Object.keys(document.get("reservable_group"))) {
     const group = groupFromObject(document.get("reservable_group")[key]);
-    if(group !== null){
+    if (group !== null) {
       reservable_group.push(group);
     }
   }
@@ -48,5 +50,22 @@ export async function ticketTypeFromDocument(document: DocumentSnapshot): Promis
     display_ticket_name: display_ticket_name,
     display_ticket_description: display_ticket_description,
     require_two_factor: require_two_factor
+  }
+}
+
+/**
+ * TicketTypeのTwoFactorKeyを取得する(注意!!!!!絶対漏らすな!!!!)
+ * @param ticketsCollection
+ * @param ticketType
+ */
+export async function getTwoFactorKey(ticketsCollection: CollectionReference, ticketType: TicketType): Promise<string | undefined> {
+  if (!ticketType.require_two_factor) {
+    return undefined;
+  }
+  const ticketTypeDoc = await ticketsCollection.doc(ticketType.ticket_type_id).get();
+  if (ticketTypeDoc.exists) {
+    return safeAsString(ticketTypeDoc.get("two_factor_key"));
+  } else {
+    return undefined;
   }
 }
