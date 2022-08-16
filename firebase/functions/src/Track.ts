@@ -63,6 +63,9 @@ export async function checkInOut(operation: Operation, user: UserRecord, toRoom:
         });
         break;
       case Operation.Exit:
+        if (!isEnterable(toRoom, reservation.reserved_ticket_type)) {
+          return false;
+        }
         await updateCurrentRoom(toRoom, user, trackCollection, roomCollection);
         const fromRoomId_ = fromRoom ? fromRoom.room_id : "undefined";
         await recordTrackEntry(trackCollection, user, {
