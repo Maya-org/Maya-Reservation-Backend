@@ -487,9 +487,9 @@
                     ],
                     "description": "Enter/Exit"
                   },
-                  "auth_token": {
+                  "auth_uid": {
                     "type": "string",
-                    "description": "当該ユーザーのToken"
+                    "description": "当該ユーザーのUID"
                   },
                   "room_id": {
                     "type": "string",
@@ -502,7 +502,7 @@
                 },
                 "required": [
                   "operation",
-                  "auth_token",
+                  "auth_uid",
                   "room_id",
                   "reservation_id"
                 ]

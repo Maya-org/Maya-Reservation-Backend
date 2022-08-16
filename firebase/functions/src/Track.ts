@@ -24,8 +24,7 @@ export function operationFromString(str: string): Operation | null {
 export async function getCurrentRoom(user: UserRecord, trackCollection: CollectionReference): Promise<Room | null> {
   const trackData = await (trackCollection.doc(user.uid).get());
   if (trackData.exists) {
-    // @ts-ignore
-    const roomRef = trackData['current_room'];
+    const roomRef = trackData.get("current_room");
     if (roomRef) {
       const roomData: DocumentSnapshot = await roomRef.get();
       if (roomData.exists) {
@@ -64,7 +63,7 @@ export async function checkInOut(operation: Operation, user: UserRecord, toRoom:
         });
         break;
       case Operation.Exit:
-        await updateCurrentRoom(toRoom, user, trackCollection, roomCollection); // TODO 出場先をどうしたらいいんだ
+        await updateCurrentRoom(toRoom, user, trackCollection, roomCollection);
         const fromRoomId_ = fromRoom ? fromRoom.room_id : "undefined";
         await recordTrackEntry(trackCollection, user, {
           operation: "exit",

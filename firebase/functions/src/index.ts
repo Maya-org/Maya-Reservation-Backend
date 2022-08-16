@@ -3,7 +3,7 @@ import * as admin from "firebase-admin";
 import {firestore} from "firebase-admin";
 import {toUser, userFromCollection, userToCollection} from "./api/models/User";
 import {safeAsString} from "./SafeAs";
-import {authenticated, checkPermission, Permission, verifyToken} from "./Auth";
+import {authenticated, checkPermission, getUser, Permission} from "./Auth";
 import {toUserAuthenticationFailed} from "./api/responces/UserAuthenticationFailed";
 import {toInternalException} from "./api/responces/InternalException";
 import {eventFromDoc, ReservableEvent, ReservationStatus, reserveEvent} from "./api/models/ReservableEvent";
@@ -269,11 +269,11 @@ export const check = functions.region('asia-northeast1').https.onRequest(async (
     await authenticated(admin.auth(), q, s, async (_, __) => {
       const json = JSON.parse(req.body);
       const operation_str = safeAsString(json["operation"]);
-      const auth_token = safeAsString(json["auth_token"]);
+      const auth_uid = safeAsString(json["auth_uid"]);
       const room_id = safeAsString(json["room_id"]);
       const reservation_id = safeAsString(json["reservation_id"]);
 
-      if (operation_str === undefined || auth_token === undefined || room_id === undefined || reservation_id === undefined) {
+      if (operation_str === undefined || auth_uid === undefined || room_id === undefined || reservation_id === undefined) {
         res.status(400).send(
           toInternalException("InternalException", "チェックイン/アウト情報が不足しています")
         );
@@ -288,8 +288,8 @@ export const check = functions.region('asia-northeast1').https.onRequest(async (
         return;
       }
 
-      const targetRecord = await verifyToken(admin.auth(), auth_token);
-      if (targetRecord === undefined) {
+      const targetRecord = await getUser(admin.auth(),auth_uid);
+      if (targetRecord === null) {
         res.status(400).send(
           toInternalException("InternalException", "当該ユーザーの認証に失敗しました")
         );

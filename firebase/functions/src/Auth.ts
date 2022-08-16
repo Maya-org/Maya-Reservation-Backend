@@ -102,3 +102,11 @@ export async function checkPermission(
   // permission not found
   await fail()
 }
+
+export async function getUser(auth: Auth, uid: string): Promise<UserRecord | null> {
+  return auth.getUser(uid).then(user => {
+    return user
+  }).catch(_ => {
+    return null
+  });
+}
