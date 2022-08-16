@@ -1,10 +1,11 @@
 import {UserRecord} from "firebase-admin/lib/auth/user-record";
 import {isEnterable, Room, roomFromObj} from "./api/models/Room";
 import {Reservation} from "./api/models/Reservation";
-import {firestore} from "firebase-admin";
+import {database, firestore} from "firebase-admin";
 import CollectionReference = firestore.CollectionReference;
 import {DocumentSnapshot} from "firebase-functions/lib/providers/firestore";
 import FieldValue = firestore.FieldValue;
+import Reference = database.Reference;
 
 export enum Operation {
   Enter, Exit
@@ -45,7 +46,7 @@ export async function getCurrentRoom(user: UserRecord, trackCollection: Collecti
  * @param trackCollection
  * @param roomCollection
  */
-export async function checkInOut(operation: Operation, user: UserRecord, toRoom: Room, reservation: Reservation, trackCollection: CollectionReference, roomCollection: CollectionReference): Promise<boolean> {
+export async function checkInOut(operation: Operation, user: UserRecord, toRoom: Room, reservation: Reservation, trackCollection: CollectionReference, roomCollection: CollectionReference, guestCountRef: Reference): Promise<boolean> {
   {
     const fromRoom: Room | null = await getCurrentRoom(user, trackCollection)
     switch (operation) {
@@ -53,7 +54,7 @@ export async function checkInOut(operation: Operation, user: UserRecord, toRoom:
         if (!isEnterable(toRoom, reservation.reserved_ticket_type)) {
           return false;
         }
-        await updateCurrentRoom(toRoom, user, trackCollection, roomCollection);
+        await updateCurrentRoom(toRoom, user, reservation, fromRoom, trackCollection, roomCollection, guestCountRef);
         const fromRoomId = fromRoom ? fromRoom.room_id : "undefined";
         await recordTrackEntry(trackCollection, user, {
           operation: "enter",
@@ -66,7 +67,7 @@ export async function checkInOut(operation: Operation, user: UserRecord, toRoom:
         if (!isEnterable(toRoom, reservation.reserved_ticket_type)) {
           return false;
         }
-        await updateCurrentRoom(toRoom, user, trackCollection, roomCollection);
+        await updateCurrentRoom(toRoom, user, reservation, fromRoom, trackCollection, roomCollection, guestCountRef);
         const fromRoomId_ = fromRoom ? fromRoom.room_id : "undefined";
         await recordTrackEntry(trackCollection, user, {
           operation: "exit",
@@ -81,8 +82,17 @@ export async function checkInOut(operation: Operation, user: UserRecord, toRoom:
   return true;
 }
 
-async function updateCurrentRoom(toUpdate: Room, user: UserRecord, trackCollection: CollectionReference, roomCollection: CollectionReference): Promise<void> {
+async function updateCurrentRoom(toUpdate: Room, user: UserRecord, reservation: Reservation, fromRoom: Room | null, trackCollection: CollectionReference, roomCollection: CollectionReference, guestCountRef: Reference): Promise<boolean> {
   await trackCollection.doc(user.uid).set({current_room: roomCollection.doc(toUpdate.room_id)});
+  let b = true;
+
+  if (fromRoom) {
+    // チェックアウトしたらチェックアウトした部屋の人数を減らす
+    b = b && await updateGuestCount(guestCountRef, fromRoom, -(reservation.group_data.headcount));
+  }
+  // チェックアウトしたらチェックインした部屋の人数を増やす
+  b = b && await updateGuestCount(guestCountRef, toUpdate, reservation.group_data.headcount);
+  return b;
 }
 
 /**
@@ -98,4 +108,20 @@ export async function recordTrackEntry(trackCollection: CollectionReference, use
   }
 
   await trackCollection.doc(user.uid).collection("trackings").add(data);
+}
+
+
+async function updateGuestCount(ref: Reference, room: Room, delta: number): Promise<boolean> {
+  return ref.child(room.room_id).get().then(async snapshot => {
+    let count = 0;
+    if (snapshot.exists()) {
+      count = snapshot.val();
+    }
+    count += delta;
+
+    await ref.child(room.room_id).set(count);
+    return true;
+  }).catch(_ => {
+    return false;
+  });
 }

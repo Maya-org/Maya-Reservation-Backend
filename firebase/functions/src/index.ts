@@ -22,6 +22,7 @@ import {roomById} from "./api/models/Room";
 
 admin.initializeApp();
 const db = admin.firestore();
+const realTimeDB = admin.database();
 
 const usersCollection = db.collection("users");
 const eventsCollection = db.collection("events");
@@ -30,6 +31,7 @@ const adminCollection = db.collection("admin");
 const ticketCollection = db.collection("tickets");
 const roomsCollection = db.collection("rooms");
 const trackCollection = db.collection("track");
+const guestCountRef = realTimeDB.ref("guestCount");
 
 export const register = functions.region('asia-northeast1').https.onRequest(async (q, s) => {
   await onPOST(q, s, async (req, res) => {
@@ -288,7 +290,7 @@ export const check = functions.region('asia-northeast1').https.onRequest(async (
         return;
       }
 
-      const targetRecord = await getUser(admin.auth(),auth_uid);
+      const targetRecord = await getUser(admin.auth(), auth_uid);
       if (targetRecord === null) {
         res.status(400).send(
           toInternalException("InternalException", "当該ユーザーの認証に失敗しました")
@@ -311,10 +313,10 @@ export const check = functions.region('asia-northeast1').https.onRequest(async (
         );
         return;
       }
-      const result = await checkInOut(operation, targetRecord, room, reservation, trackCollection, roomsCollection);
+      const result = await checkInOut(operation, targetRecord, room, reservation, trackCollection, roomsCollection, guestCountRef);
       if (result) {
         res.status(200).send(addTypeProperty({}, "check"));
-      }else{
+      } else {
         res.status(400).send(
           toInternalException("InternalException", "このチケットでは入場出来ません")
         );
