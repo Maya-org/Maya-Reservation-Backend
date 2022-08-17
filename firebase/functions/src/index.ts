@@ -188,7 +188,7 @@ export const modify = functions.region('asia-northeast1').https.onRequest(async 
         return;
       }
       const two_factor_key = safeAsString(json["two_factor_key"]);
-      const ticketTypes_obj = json["ticketTypes"];
+      const ticketTypes_obj = json["tickets"];
       if (!ticketTypes_obj || !Array.isArray(ticketTypes_obj)) {
         res.status(400).send(
           toInternalException("InternalException", "チケットタイプが不足しています")
