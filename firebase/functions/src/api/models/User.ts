@@ -1,7 +1,7 @@
 import {firestore} from "firebase-admin";
 import Timestamp = firestore.Timestamp;
 import {UserAuthentication} from "./UserAuthentication";
-import CollectionReference = firestore.CollectionReference;
+import {ReferenceCollection} from "../../ReferenceCollection";
 
 type User = {
   firstName: string;
@@ -10,16 +10,16 @@ type User = {
   auth: UserAuthentication;
 }
 
-export async function userToCollection(collection: CollectionReference, user: User) {
-  await collection.doc(user.auth.firebase_auth_uid).set({
+export async function userToCollection(collection: ReferenceCollection, user: User) {
+  await collection.usersCollection.doc(user.auth.firebase_auth_uid).set({
     firstName: user.firstName,
     lastName: user.lastName,
     createdDate: user.createdDate
   })
 }
 
-export async function userFromCollection(collection: CollectionReference, auth: UserAuthentication): Promise<User | null> {
-  let doc = await collection.doc(auth.firebase_auth_uid).get();
+export async function userFromCollection(collection: ReferenceCollection, auth: UserAuthentication): Promise<User | null> {
+  let doc = await collection.usersCollection.doc(auth.firebase_auth_uid).get();
   if (doc.exists) {
     return {
       firstName: doc.get("firstName") as string,

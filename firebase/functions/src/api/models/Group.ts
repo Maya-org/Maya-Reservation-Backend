@@ -1,6 +1,7 @@
 import {Guest, guestFromString, guestTypes} from "./Guest";
 import {firestore} from "firebase-admin";
 import DocumentReference = firestore.DocumentReference;
+import {any} from "../../util";
 
 export type Group = {
   all_guests: Guest[];
@@ -10,15 +11,12 @@ export type Group = {
 export function isSameGroup(one: Group, other: Group): boolean {
   const one_map = groupToMap(one);
   const other_map = groupToMap(other);
-  console.log("isSameGroup", one_map, other_map);
   for (const i in guestTypes) {
     const type = guestTypes[i];
     if ((one_map.get(type) || 0) !== (other_map.get(type) || 0)) {
-      console.log("false")
       return false;
     }
   }
-  console.log("true")
   return true;
 }
 
@@ -71,4 +69,17 @@ export function groupFromObject(object: any): Group | null {
     all_guests: guests,
     headcount: guests.length
   };
+}
+
+export function groupFromStrings(str: string[]): Group | null {
+  const arr = str.map(s => guestFromString(s));
+  if (any(arr, g => g == null)) {
+    return null;
+  }
+
+  return {
+    // @ts-ignore safely casted to Guest[]
+    all_guests: arr,
+    headcount: arr.length
+  }
 }

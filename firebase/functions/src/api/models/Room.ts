@@ -1,9 +1,9 @@
 import {TicketType, ticketTypeFromDocument} from "./TicketType";
 import {firestore} from "firebase-admin";
-import CollectionReference = firestore.CollectionReference;
 import DocumentReference = firestore.DocumentReference;
 import {any} from "../../util";
 import {DocumentSnapshot} from "firebase-functions/lib/providers/firestore";
+import {ReferenceCollection} from "../../ReferenceCollection";
 
 export type Room = {
   capacity: number,
@@ -12,8 +12,8 @@ export type Room = {
   permitted_tickets: TicketType[]
 }
 
-export async function roomById(roomCollection: CollectionReference, room_id: string): Promise<Room | null> {
-  const ref = roomCollection.doc(room_id);
+export async function roomById(collection:ReferenceCollection, room_id: string): Promise<Room | null> {
+  const ref = collection.roomsCollection.doc(room_id);
   return roomFromObj(room_id, await ref.get())
 }
 

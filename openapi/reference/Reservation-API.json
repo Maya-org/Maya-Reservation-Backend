@@ -95,21 +95,20 @@
                   "event_id": {
                     "type": "string"
                   },
-                  "ticket_type_id": {
-                    "type": "string"
-                  },
-                  "group": {
-                    "$ref": "#/components/schemas/Group"
-                  },
                   "two_factor_key": {
                     "type": "string",
                     "description": "二段階認証がこのイベントの予約に必要な場合、キーコードを送信する"
+                  },
+                  "tickets": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/TicketType"
+                    }
                   }
                 },
                 "required": [
                   "event_id",
-                  "ticket_type_id",
-                  "group"
+                  "tickets"
                 ]
               }
             }
@@ -403,23 +402,22 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "reservation_id": {
-                    "type": "string",
-                    "description": "当該予約のID"
-                  },
-                  "toUpdate_ticket_type_id": {
-                    "type": "string",
-                    "description": "更新する先のチケットタイプ\n\n省略した場合はキャンセル処理になる"
-                  },
-                  "toUpdate": {
-                    "$ref": "#/components/schemas/Guest"
-                  },
                   "two_factor_key": {
                     "type": "string",
                     "description": "二段階認証がこのイベントの予約に必要な場合、キーコードを送信する"
+                  },
+                  "tickets": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/TicketType"
+                    }
+                  },
+                  "reservation_id": {
+                    "type": "string"
                   }
                 },
                 "required": [
+                  "tickets",
                   "reservation_id"
                 ]
               }
@@ -495,16 +493,15 @@
                     "type": "string",
                     "description": "入場する部屋のID"
                   },
-                  "reservation_id": {
-                    "type": "string",
-                    "description": "入退場する際のチケットに紐づいた予約のID"
+                  "ticket_id": {
+                    "type": "string"
                   }
                 },
                 "required": [
                   "operation",
                   "auth_uid",
                   "room_id",
-                  "reservation_id"
+                  "ticket_id"
                 ]
               }
             }
@@ -549,6 +546,44 @@
         ]
       },
       "parameters": []
+    },
+    "/cancel": {
+      "post": {
+        "summary": "Cancel Reservation",
+        "operationId": "post-cancel",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/InternalException"
+          }
+        },
+        "description": "予約をキャンセルするエンドポイント",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reservation_id": {
+                    "type": "string",
+                    "description": "キャンセルする予約のID"
+                  }
+                },
+                "required": [
+                  "reservation_id"
+                ]
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "FirebaseAuthenticationToken": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -609,25 +644,20 @@
             "format": "uuid",
             "description": "予約に一つ一つふる番号"
           },
+          "tickets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Ticket"
+            }
+          },
           "event": {
             "$ref": "#/components/schemas/ReservableEvent"
-          },
-          "member_all": {
-            "type": "number",
-            "description": "予約時の人数"
-          },
-          "group_data": {
-            "$ref": "#/components/schemas/Group"
-          },
-          "reserved_ticket_type": {
-            "$ref": "#/components/schemas/TicketType"
           }
         },
         "required": [
           "reservation_id",
-          "event",
-          "group_data",
-          "reserved_ticket_type"
+          "tickets",
+          "event"
         ]
       },
       "ReservableEvent": {
@@ -682,6 +712,9 @@
             "items": {
               "$ref": "#/components/schemas/TicketType"
             }
+          },
+          "require_two_factor": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -689,7 +722,8 @@
           "displayName",
           "taken_capacity",
           "date_start",
-          "reservable_ticket_type"
+          "reservable_ticket_type",
+          "require_two_factor"
         ]
       },
       "Group": {
@@ -784,11 +818,7 @@
             "type": "string"
           },
           "reservable_group": {
-            "type": "array",
-            "description": "このチケットのタイプで予約可能な人数の組み合わせ",
-            "items": {
-              "$ref": "#/components/schemas/Group"
-            }
+            "$ref": "#/components/schemas/Group"
           },
           "display_ticket_name": {
             "type": "string",
@@ -796,17 +826,12 @@
           },
           "display_ticket_description": {
             "type": "string"
-          },
-          "require_two_factor": {
-            "type": "boolean",
-            "description": "このタイプのチケットを予約する際に、別途認証が必要かどうか"
           }
         },
         "required": [
           "ticket_type_id",
           "reservable_group",
-          "display_ticket_name",
-          "require_two_factor"
+          "display_ticket_name"
         ]
       },
       "Room": {
@@ -832,6 +857,30 @@
           "room_id",
           "capacity",
           "display_name"
+        ]
+      },
+      "Ticket": {
+        "title": "Ticket",
+        "x-stoplight": {
+          "id": "5y6fl4p2mu0nx"
+        },
+        "type": "object",
+        "description": "チケット一枚一枚のデータ",
+        "properties": {
+          "ticket_id": {
+            "type": "string"
+          },
+          "ticket_type": {
+            "$ref": "#/components/schemas/TicketType"
+          },
+          "event": {
+            "$ref": "#/components/schemas/ReservableEvent"
+          }
+        },
+        "required": [
+          "ticket_id",
+          "ticket_type",
+          "event"
         ]
       }
     },
