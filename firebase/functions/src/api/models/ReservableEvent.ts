@@ -25,6 +25,8 @@ export type ReservableEvent = {
 
   reservable_ticket_type: TicketType[];
   require_two_factor: boolean;
+
+  maximum_reservations_per_user?: number;
 }
 
 export async function eventFromDoc(doc: DocumentSnapshot): Promise<ReservableEvent | null> {
@@ -52,9 +54,11 @@ export async function eventFromDoc(doc: DocumentSnapshot): Promise<ReservableEve
     const require_two_factor = safeAsBoolean(doc.get("require_two_factor"));
 
     if (display_name === undefined || date_start === undefined || reservable_ticket_type.length === 0 || require_two_factor === undefined || taken_capacity === undefined) {
-      errorGCP("in eventFromDoc, returns null # display_name || date_start || reservable_ticket_type.length === 0 || require_two_factor === undefined || taken_capacity === undefined", "path", doc.ref.path, "display_name",display_name, "date_start", date_start, "reservable_ticket_type.length", reservable_ticket_type.length, "require_two_factor", require_two_factor, "taken_capacity", taken_capacity);
+      errorGCP("in eventFromDoc, returns null # display_name || date_start || reservable_ticket_type.length === 0 || require_two_factor === undefined || taken_capacity === undefined", "path", doc.ref.path, "display_name", display_name, "date_start", date_start, "reservable_ticket_type.length", reservable_ticket_type.length, "require_two_factor", require_two_factor, "taken_capacity", taken_capacity);
       return null;
     }
+
+    const maximum_reservations_per_user = safeAsNumber(doc.get("maximum_reservations_per_user"));
 
 
     return {
@@ -67,7 +71,8 @@ export async function eventFromDoc(doc: DocumentSnapshot): Promise<ReservableEve
       taken_capacity,
       required_reservation,
       reservable_ticket_type,
-      require_two_factor
+      require_two_factor,
+      maximum_reservations_per_user: maximum_reservations_per_user
     }
   }
 

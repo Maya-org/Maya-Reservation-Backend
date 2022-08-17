@@ -715,6 +715,10 @@
           },
           "require_two_factor": {
             "type": "boolean"
+          },
+          "maximum_reservations_per_user": {
+            "type": "number",
+            "description": "1ユーザーあたりの最大予約数"
           }
         },
         "required": [
