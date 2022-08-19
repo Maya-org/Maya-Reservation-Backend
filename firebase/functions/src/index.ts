@@ -326,8 +326,8 @@ export const check = functions.region('asia-northeast1').https.onRequest(async (
         return;
       }
 
-      const room = await roomById(collection, room_id);
-      if (room === null) {
+      const targetRoom = await roomById(collection, room_id);
+      if (targetRoom === null) {
         res.status(400).send(
           toInternalException("InternalException", "指定された部屋が存在しません")
         );
@@ -341,7 +341,7 @@ export const check = functions.region('asia-northeast1').https.onRequest(async (
         );
         return;
       }
-      const result = await checkInOut(operation, targetRecord, room, ticket, collection);
+      const result = await checkInOut(operation, targetRecord, targetRoom, ticket, collection);
       if (result) {
         res.status(200).send(addTypeProperty({}, "check"));
       } else {
@@ -353,7 +353,7 @@ export const check = functions.region('asia-northeast1').https.onRequest(async (
   });
 });
 
-export const rooms = functions.region('asia-northeast1').https.onRequest(async (q, s) => {
+export const room = functions.region('asia-northeast1').https.onRequest(async (q, s) => {
   await onGET(q, s, async (_, res) => {
     await authenticated(admin.auth(), q, s, async (__, ___) => {
       const rs = await Promise.all((await (collection.roomsCollection.get())).docs.map(async (doc) => {

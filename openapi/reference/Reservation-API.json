@@ -510,7 +510,7 @@
         }
       }
     },
-    "/rooms": {
+    "/room": {
       "get": {
         "summary": "Your GET endpoint",
         "tags": [],
