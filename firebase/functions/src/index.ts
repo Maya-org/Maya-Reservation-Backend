@@ -14,7 +14,7 @@ import {checkInOut, operationFromString} from "./Track";
 import {roomById} from "./api/models/Room";
 import {initCollection} from "./ReferenceCollection";
 import {TicketType, ticketTypeByID} from "./api/models/TicketType";
-import {any} from "./util";
+import {any, errorGCP} from "./util";
 import Timestamp = firestore.Timestamp;
 import {ticketByID} from "./api/models/Ticket";
 
@@ -303,6 +303,7 @@ export const check = functions.region('asia-northeast1').https.onRequest(async (
       const ticket_id = safeAsString(json["ticket_id"]);
 
       if (operation_str === undefined || auth_uid === undefined || room_id === undefined || ticket_id === undefined) {
+        errorGCP("Failed in check", "必要なパラメータが不足しています", "operation", operation_str, "auth_uid", auth_uid, "room_id", room_id, "ticket_id", ticket_id);
         res.status(400).send(
           toInternalException("InternalException", "チェックイン/アウト情報が不足しています")
         );

@@ -859,7 +859,6 @@
         },
         "required": [
           "room_id",
-          "capacity",
           "display_name"
         ]
       },
