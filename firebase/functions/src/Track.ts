@@ -1,4 +1,3 @@
-import {UserRecord} from "firebase-admin/lib/auth/user-record";
 import {isEnterable, Room, roomFromObj} from "./api/models/Room";
 import {database, firestore} from "firebase-admin";
 import CollectionReference = firestore.CollectionReference;
@@ -23,8 +22,8 @@ export function operationFromString(str: string): Operation | null {
   }
 }
 
-export async function getCurrentRoom(user: UserRecord, trackCollection: CollectionReference): Promise<Room | null> {
-  const trackData = await (trackCollection.doc(user.uid).get());
+export async function getCurrentRoom(ticket: Ticket, trackCollection: CollectionReference): Promise<Room | null> {
+  const trackData = await (trackCollection.doc(ticket.ticket_id).get());
   if (trackData.exists) {
     const roomRef = trackData.get("current_room");
     if (roomRef) {
@@ -41,14 +40,13 @@ export async function getCurrentRoom(user: UserRecord, trackCollection: Collecti
 /**
  * チェックイン/チェックアウトを行う。
  * @param operation
- * @param user
  * @param toRoom
- * @param reservation
+ * @param ticket
  * @param collection
  */
-export async function checkInOut(operation: Operation, user: UserRecord, toRoom: Room, ticket: Ticket, collection: ReferenceCollection): Promise<boolean> {
+export async function checkInOut(operation: Operation, toRoom: Room, ticket: Ticket, collection: ReferenceCollection): Promise<boolean> {
   {
-    const fromRoom: Room | null = await getCurrentRoom(user, collection.tracksCollection)
+    const fromRoom: Room | null = await getCurrentRoom(ticket, collection.tracksCollection)
     switch (operation) {
       case Operation.Enter:
         if (!isEnterable(toRoom, ticket.ticket_type)) {

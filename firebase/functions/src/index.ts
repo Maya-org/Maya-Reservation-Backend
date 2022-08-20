@@ -358,7 +358,7 @@ export const check = functions.region('asia-northeast1').https.onRequest(async (
         );
         return;
       }
-      const result = await checkInOut(operation, targetRecord, targetRoom, ticket, collection);
+      const result = await checkInOut(operation, targetRoom, ticket, collection);
       if (result) {
         res.status(200).send(addTypeProperty({}, "check"));
       } else {
