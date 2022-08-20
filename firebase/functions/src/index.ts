@@ -4,10 +4,9 @@ import {firestore} from "firebase-admin";
 import {toUser, userFromCollection, userToCollection} from "./api/models/User";
 import {safeAsString} from "./SafeAs";
 import {authenticated, checkPermission, getUser, Permission} from "./Auth";
-import {toUserAuthenticationFailed} from "./api/responces/UserAuthenticationFailed";
 import {toInternalException} from "./api/responces/InternalException";
 import {eventFromDoc, ReservableEvent, ReservationStatus, reserveEvent} from "./api/models/ReservableEvent";
-import {addTypeProperty, onGET, onPOST} from "./EndPointUtil";
+import {addTypeProperty, applyCORSHeaders, handleOption, onGET, onPOST} from "./EndPointUtil";
 import {Reservation, reservationFromDocument, reservationRequestFromRequestBody} from "./api/models/Reservation";
 import {cancelReservation, modifyReservation, ModifyStatus} from "./Modify";
 import {checkInOut, operationFromString} from "./Track";
@@ -25,38 +24,44 @@ const realTimeDB = admin.database();
 const collection = initCollection(db, realTimeDB);
 
 export const register = functions.region('asia-northeast1').https.onRequest(async (q, s) => {
+  applyCORSHeaders(s);
+  handleOption(q, s);
   await onPOST(q, s, async (reqJson, res) => {
     await authenticated(admin.auth(), q, res, async (_ur, uAuth) => {
-      const firstName = safeAsString(reqJson['firstName']);
-      const lastName = safeAsString(reqJson['lastName']);
+      const firstName = safeAsString(reqJson['first_name']);
+      const lastName = safeAsString(reqJson['last_name']);
       const timeStamp = Timestamp.now();
 
       if (firstName === undefined || lastName === undefined) {
         res.status(400).send(toInternalException("InternalException", "名前情報が不足しています"));
       } else {
+        let alreadyRegistered = false;
         if (await userFromCollection(collection, uAuth) != null) {
           // すでに登録済みのユーザー
-          res.status(401).send(toUserAuthenticationFailed("UserAuthenticationFailed@AlreadyRegistered"));
-        } else {
-          const us = toUser(
-            firstName, lastName, timeStamp, uAuth
-          );
-
-          if (us === null) {
-            res.status(400).send(
-              toInternalException("InternalException", "ユーザー情報が不足しています")
-            );
-          } else {
-            await userToCollection(collection, us);
-            res.status(200).send(addTypeProperty({}, "register"));
-          }
+          alreadyRegistered = true;
         }
+
+        const us = toUser(
+          firstName, lastName, timeStamp, uAuth
+        );
+
+        if (us === null) {
+          res.status(400).send(
+            toInternalException("InternalException", "ユーザー情報が不足しています")
+          );
+        } else {
+          await userToCollection(collection, us);
+        }
+
+        res.status(200).send(addTypeProperty({alreadyRegistered: alreadyRegistered}, "register"));
       }
     })
   });
 });
 
 export const user = functions.region('asia-northeast1').https.onRequest(async (q, s) => {
+  applyCORSHeaders(s);
+  handleOption(q, s);
   await onGET(q, s, async (req, res) => {
     await authenticated(admin.auth(), req, res, async (_record, uAuth) => {
       const us = await userFromCollection(collection, uAuth);
@@ -76,6 +81,8 @@ export const user = functions.region('asia-northeast1').https.onRequest(async (q
 });
 
 export const event = functions.region('asia-northeast1').https.onRequest(async (q, s) => {
+  applyCORSHeaders(s);
+  handleOption(q, s);
   await onGET(q, s, async (req, res) => {
     await authenticated(admin.auth(), req, res, async (_record, _uAuth) => {
       const docReference = await collection.eventsCollection.get();
@@ -88,6 +95,8 @@ export const event = functions.region('asia-northeast1').https.onRequest(async (
 });
 
 export const reserve = functions.region('asia-northeast1').https.onRequest(async (q, s) => {
+  applyCORSHeaders(s);
+  handleOption(q, s);
   await onPOST(q, s, async (reqJSon, res) => {
     await authenticated(admin.auth(), q, res, async (record, _uAuth) => {
       const reservationRequest = await reservationRequestFromRequestBody(reqJSon, collection);
@@ -155,6 +164,8 @@ export const reserve = functions.region('asia-northeast1').https.onRequest(async
 });
 
 export const permissions = functions.region('asia-northeast1').https.onRequest(async (q, s) => {
+  applyCORSHeaders(s);
+  handleOption(q, s);
   await onGET(q, s, async (req, res) => {
     await authenticated(admin.auth(), req, res, async (_record, uAuth) => {
       let values = Object.keys(Permission)
@@ -178,6 +189,8 @@ export const permissions = functions.region('asia-northeast1').https.onRequest(a
 });
 
 export const modify = functions.region('asia-northeast1').https.onRequest(async (q, s) => {
+  applyCORSHeaders(s);
+  handleOption(q, s);
   await onPOST(q, s, async (json, res) => {
     await authenticated(admin.auth(), q, s, async (record, _) => {
       let reservation_id: string | undefined = safeAsString(json["reservation_id"]);
@@ -254,6 +267,8 @@ export const modify = functions.region('asia-northeast1').https.onRequest(async 
 });
 
 export const cancel = functions.region('asia-northeast1').https.onRequest(async (q, s) => {
+  applyCORSHeaders(s);
+  handleOption(q, s);
   await onPOST(q, s, async (json, res) => {
     await authenticated(admin.auth(), q, s, async (record, _) => {
       const reservation_id = safeAsString(json["reservation_id"]);
@@ -295,6 +310,8 @@ export const cancel = functions.region('asia-northeast1').https.onRequest(async 
 });
 
 export const check = functions.region('asia-northeast1').https.onRequest(async (q, s) => {
+  applyCORSHeaders(s);
+  handleOption(q, s);
   await onPOST(q, s, async (json, res) => {
     await authenticated(admin.auth(), q, s, async (_, __) => {
       const operation_str = safeAsString(json["operation"]);
@@ -354,6 +371,8 @@ export const check = functions.region('asia-northeast1').https.onRequest(async (
 });
 
 export const room = functions.region('asia-northeast1').https.onRequest(async (q, s) => {
+  applyCORSHeaders(s);
+  handleOption(q, s);
   await onGET(q, s, async (_, res) => {
     await authenticated(admin.auth(), q, s, async (__, ___) => {
       const rs = await Promise.all((await (collection.roomsCollection.get())).docs.map(async (doc) => {

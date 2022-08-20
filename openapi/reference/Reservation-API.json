@@ -31,10 +31,15 @@
                         "register"
                       ],
                       "description": "TypeParameter"
+                    },
+                    "alreadyRegistered": {
+                      "type": "boolean",
+                      "description": "すでに登録しているかどうか"
                     }
                   },
                   "required": [
-                    "type"
+                    "type",
+                    "alreadyRegistered"
                   ]
                 }
               }
