@@ -133,6 +133,9 @@ export async function cancelReservation(collection: ReferenceCollection, user: U
         return updateResult;
       } else {
         // 予約データを削除
+        reservation.tickets.forEach(ticket => {
+          deleteTicketsFromCollection(collection, ticket);  // チケット削除
+        });
         await cancelReservationFromCollection(user, reservation.reservation_id, collection);
         return ModifyStatus.CANCELLED;
       }
