@@ -108,16 +108,17 @@ export async function recordTrackEntry(collection: ReferenceCollection, ticket: 
 
 
 async function updateGuestCount(ref: Reference, room: Room, delta: number): Promise<boolean> {
-  return ref.child(room.room_id).get().then(async snapshot => {
-    let count = 0;
-    if (snapshot.exists()) {
-      count = snapshot.val();
+  const result = await ref.child(room.room_id).transaction(count => {
+    let c;
+    if(count){
+      c = count;
+    }else{
+      c = 0;
     }
-    count += delta;
 
-    await ref.child(room.room_id).set(count);
-    return true;
-  }).catch(_ => {
-    return false;
+    c+= delta;
+    return c;
   });
+
+  return result.committed;
 }
