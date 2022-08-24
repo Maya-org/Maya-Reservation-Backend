@@ -18,6 +18,7 @@ export type ReservableEvent = {
 
   date_start: Timestamp;
   date_end?: Timestamp;
+  available_at?: Timestamp;
 
   capacity?: number;
   taken_capacity: number;
@@ -37,6 +38,7 @@ export async function eventFromDoc(doc: DocumentSnapshot): Promise<ReservableEve
     const description = safeAsString(doc.get("description"));
     const date_start = safeAsTimeStamp(doc.get("date_start"));
     const date_end = safeAsTimeStamp(doc.get("date_end"));
+    const available_at = safeAsTimeStamp(doc.get("available_at"));
     const capacity = safeAsNumber(doc.get("capacity"));
     const taken_capacity = safeAsNumber(doc.get("taken_capacity"));
     const required_reservation_ref = safeAsReference(doc.get("required_reservation"));
@@ -67,6 +69,7 @@ export async function eventFromDoc(doc: DocumentSnapshot): Promise<ReservableEve
       description,
       date_start,
       date_end,
+      available_at,
       capacity,
       taken_capacity,
       required_reservation,
@@ -91,6 +94,12 @@ export async function eventByID(collection: ReferenceCollection, event_id: strin
  * @param reservationRequest
  */
 export async function reserveEvent(db: Firestore, collection: ReferenceCollection, user: UserRecord, reservationRequest: ReserveRequest): Promise<ReservationStatus> {
+  if(reservationRequest.event.available_at != null && Timestamp.now().toMillis() < reservationRequest.event.available_at.toMillis()) {
+    // 予約可能期間外
+    return ReservationStatus.NOT_AVAILABLE;
+  }
+
+
   if (sumAll(reservationRequest.ticket_types.map(ticket => ticket.reservable_group.headcount)) < 1) {
     // 人数が1人未満の場合は予約できない
     return ReservationStatus.INVALID_GROUP;
@@ -111,10 +120,18 @@ export async function reserveEvent(db: Firestore, collection: ReferenceCollectio
   const reservations = (await Promise.all(docReference.docs.map(async doc => {
     return reservationFromDocument(doc);
   }))).filter(ev => ev !== null) as Reservation[];
-  const reservation = reservations.find(rv => rv.event.event_id === reservationRequest.event.event_id);
-  if (reservation !== undefined) {
+  const sameEventReservation = reservations.find(rv => rv.event.event_id === reservationRequest.event.event_id);
+  if (sameEventReservation !== undefined) {
     // Already reserved
     return ReservationStatus.ALREADY_RESERVED;
+  }
+  if(reservationRequest.event.required_reservation != null){
+    // Check if the user is reserved the required event
+    const requiredReservation = reservations.filter(rv => rv.event.event_id === reservationRequest.event.required_reservation!.event_id);
+    if(requiredReservation.length === 0){
+      // Not reserved the required event
+      return ReservationStatus.NOT_RESERVED_REQUIRED_EVENT;
+    }
   }
 
   // Check if the event is available and update the taken_capacity
@@ -151,6 +168,8 @@ export enum ReservationStatus {
   INVALID_GROUP,
   INVALID_TICKET_TYPE,
   INVALID_TWO_FACTOR_KEY,
+  NOT_AVAILABLE,
+  NOT_RESERVED_REQUIRED_EVENT
 }
 
 /**

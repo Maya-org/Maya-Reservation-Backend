@@ -14,8 +14,8 @@ import {roomById} from "./api/models/Room";
 import {initCollection} from "./ReferenceCollection";
 import {TicketType, ticketTypeByID} from "./api/models/TicketType";
 import {any, errorGCP} from "./util";
-import Timestamp = firestore.Timestamp;
 import {ticketByID} from "./api/models/Ticket";
+import Timestamp = firestore.Timestamp;
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -145,6 +145,16 @@ export const reserve = functions.region('asia-northeast1').https.onRequest(async
           case ReservationStatus.INVALID_TWO_FACTOR_KEY:
             res.status(400).send(
               toInternalException("InternalException@InvalidTwoFactorKey", "2FAキーが不正です")
+            );
+            break;
+          case ReservationStatus.NOT_AVAILABLE:
+            res.status(400).send(
+              toInternalException("InternalException@NotAvailable", "まだ予約できません(予約期間外です)")
+            );
+            break;
+          case ReservationStatus.NOT_RESERVED_REQUIRED_EVENT:
+            res.status(400).send(
+              toInternalException("InternalException@NotReservedRequiredEvent", "必要なイベントが予約されていません")
             );
             break;
         }
