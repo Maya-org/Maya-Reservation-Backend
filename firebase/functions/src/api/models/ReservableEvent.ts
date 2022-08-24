@@ -113,8 +113,6 @@ export async function reserveEvent(db: Firestore, collection: ReferenceCollectio
     }
   }
 
-  // TODO Check if user is reserved the required event
-
   // Check if the user is already reserved the event
   let docReference = await collection.reservationsCollection.doc(user.uid).collection("reservations").get()
   const reservations = (await Promise.all(docReference.docs.map(async doc => {
