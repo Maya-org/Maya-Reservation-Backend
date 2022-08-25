@@ -12,6 +12,7 @@ import {errorGCP, headCount} from "./util";
 import {ReferenceCollection} from "./ReferenceCollection";
 import {deleteTicketsFromCollection, registerTicketsToCollection, Ticket} from "./api/models/Ticket";
 import {TicketType} from "./api/models/TicketType";
+import Timestamp = firestore.Timestamp;
 
 /**
  * Modify/Delete a reservation.
@@ -30,6 +31,11 @@ export async function modifyReservation(collection: ReferenceCollection, user: U
   const reservation: Reservation | null = await reservationByID(collection, user, reservation_id);
   if (reservation === null) {
     return ModifyStatus.RESERVATION_NOT_FOUND;
+  }
+
+  if(reservation.event.date_start.toMillis() < Timestamp.now().toMillis()){
+    // もうすでにイベントが開始している
+    return ModifyStatus.EVENT_ALREADY_STARTED;
   }
 
   const ticket_two_factor_key = await getTwoFactorKey(collection, reservation.event)
@@ -112,7 +118,8 @@ export enum ModifyStatus {
   RESERVATION_NOT_FOUND,
   CANCELLED,
   INVALID_MODIFY_DATA,
-  INVALID_TWO_FACTOR_KEY
+  INVALID_TWO_FACTOR_KEY,
+  EVENT_ALREADY_STARTED
 }
 
 /**

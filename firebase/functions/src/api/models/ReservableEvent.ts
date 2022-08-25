@@ -94,7 +94,9 @@ export async function eventByID(collection: ReferenceCollection, event_id: strin
  * @param reservationRequest
  */
 export async function reserveEvent(db: Firestore, collection: ReferenceCollection, user: UserRecord, reservationRequest: ReserveRequest): Promise<ReservationStatus> {
-  if(reservationRequest.event.available_at != null && Timestamp.now().toMillis() < reservationRequest.event.available_at.toMillis()) {
+  if (reservationRequest.event.available_at != null && Timestamp.now().toMillis() < reservationRequest.event.available_at.toMillis() || // 予約可能機関にまだ入っていない
+    reservationRequest.event.date_start.toMillis() < Timestamp.now().toMillis()  // イベントがもうすでに開始している
+  ) {
     // 予約可能期間外
     return ReservationStatus.NOT_AVAILABLE;
   }
@@ -123,10 +125,10 @@ export async function reserveEvent(db: Firestore, collection: ReferenceCollectio
     // Already reserved
     return ReservationStatus.ALREADY_RESERVED;
   }
-  if(reservationRequest.event.required_reservation != null){
+  if (reservationRequest.event.required_reservation != null) {
     // Check if the user is reserved the required event
     const requiredReservation = reservations.filter(rv => rv.event.event_id === reservationRequest.event.required_reservation!.event_id);
-    if(requiredReservation.length === 0){
+    if (requiredReservation.length === 0) {
       // Not reserved the required event
       return ReservationStatus.NOT_RESERVED_REQUIRED_EVENT;
     }

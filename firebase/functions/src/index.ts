@@ -271,6 +271,10 @@ export const modify = functions.region('asia-northeast1').https.onRequest(async 
             toInternalException("InternalException@Cancelled", "予約変更なのにキャンセルされました")
           );
           break;
+        case ModifyStatus.EVENT_ALREADY_STARTED:
+          res.status(400).send(
+            toInternalException("InternalException@EventAlreadyStarted", "イベントが開始しているので予約変更できません")
+          );
       }
     });
   });
