@@ -28,7 +28,7 @@ export async function modifyReservation(collection: ReferenceCollection, user: U
     return ModifyStatus.INVALID_MODIFY_DATA;
   }
 
-  const reservation: Reservation | null = await reservationByID(collection, user, reservation_id);
+  const reservation: Reservation | null = await reservationByID(collection, user.uid, reservation_id);
   if (reservation === null) {
     return ModifyStatus.RESERVATION_NOT_FOUND;
   }
@@ -61,7 +61,7 @@ export async function modifyReservation(collection: ReferenceCollection, user: U
 
   // Add the new tickets to the reservation.
   const updatedTickets: Ticket[] = await Promise.all(toUpdate.map(async type => {
-    const updatedTicketID = await registerTicketsToCollection(collection, type, reservation.event);
+    const updatedTicketID = await registerTicketsToCollection(collection, type, reservation.event,reservation.reservation_id);
     return {
       ticket_type: type,
       ticket_id: updatedTicketID,

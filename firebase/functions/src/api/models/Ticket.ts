@@ -3,6 +3,7 @@ import {eventFromDoc, ReservableEvent} from "./ReservableEvent";
 import {firestore} from "firebase-admin";
 import DocumentReference = firestore.DocumentReference;
 import {newRandomID, ReferenceCollection} from "../../ReferenceCollection";
+import {safeAsString} from "../../SafeAs";
 
 export type Ticket = {
   ticket_id: string;
@@ -39,13 +40,15 @@ export async function ticketFromRef(ref: DocumentReference): Promise<Ticket | nu
  * @param ticket
  * @param event
  *
+ * @param reserve_id
  * @returns The ticket ID.
  */
-export async function registerTicketsToCollection(collection: ReferenceCollection, ticket: TicketType, event: ReservableEvent): Promise<string> {
+export async function registerTicketsToCollection(collection: ReferenceCollection, ticket: TicketType, event: ReservableEvent,reserve_id:string): Promise<string> {
   const id: string = await newRandomID(collection.ticketsCollection);
   await collection.ticketsCollection.doc(id).set({
     type: collection.ticketTypesCollection.doc(ticket.ticket_type_id),
-    event: collection.eventsCollection.doc(event.event_id)
+    event: collection.eventsCollection.doc(event.event_id),
+    reserve_id: reserve_id
   });
 
   return id;
@@ -58,4 +61,9 @@ export async function registerTicketsToCollection(collection: ReferenceCollectio
  */
 export async function deleteTicketsFromCollection(collection:ReferenceCollection,ticket:Ticket):Promise<void>{
   await collection.ticketsCollection.doc(ticket.ticket_id).delete();
+}
+
+export async function readReserveID(collection:ReferenceCollection,ticket:Ticket):Promise<string | undefined>{
+  const data = await collection.ticketsCollection.doc(ticket.ticket_id).get();
+  return safeAsString(data.get("reserve_id"));
 }

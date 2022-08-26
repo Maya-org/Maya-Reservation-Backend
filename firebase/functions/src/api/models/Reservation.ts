@@ -110,6 +110,6 @@ export async function cancelReservationFromCollection(user: UserRecord, reservat
   return false;
 }
 
-export async function reservationByID(collection: ReferenceCollection, user: UserRecord, reservation_id: string): Promise<Reservation | null> {
-  return reservationFromDocument(await collection.reservationsCollection.doc(user.uid).collection("reservations").doc(reservation_id).get());
+export async function reservationByID(collection: ReferenceCollection, user_id: string, reservation_id: string): Promise<Reservation | null> {
+  return reservationFromDocument(await collection.reservationsCollection.doc(user_id).collection("reservations").doc(reservation_id).get());
 }

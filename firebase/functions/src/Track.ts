@@ -1,4 +1,4 @@
-import {isEnterable, Room, roomFromObj} from "./api/models/Room";
+import {isEnterable, Room, roomById, roomFromObj} from "./api/models/Room";
 import {database, firestore} from "firebase-admin";
 import CollectionReference = firestore.CollectionReference;
 import {DocumentSnapshot} from "firebase-functions/lib/providers/firestore";
@@ -6,9 +6,23 @@ import FieldValue = firestore.FieldValue;
 import Reference = database.Reference;
 import {ReferenceCollection} from "./ReferenceCollection";
 import {Ticket} from "./api/models/Ticket";
+import {safeAsString, safeAsTimeStamp} from "./SafeAs";
+import Timestamp = firestore.Timestamp;
+import DocumentData = firestore.DocumentData;
 
 export enum Operation {
   Enter, Exit
+}
+
+export type TrackData = {
+  operation: Operation;
+  fromRoom: Room | null;
+  toRoom: Room;
+}
+
+export type RawTrackData = {
+  data: TrackData;
+  time: Timestamp;
 }
 
 export function operationFromString(str: string): Operation | null {
@@ -53,11 +67,10 @@ export async function checkInOut(operation: Operation, toRoom: Room, ticket: Tic
           return false;
         }
         await updateCurrentRoom(toRoom, ticket, fromRoom, collection);
-        const fromRoomId = fromRoom ? fromRoom.room_id : "undefined";
         await recordTrackEntry(collection, ticket, {
-          operation: "enter",
-          from_room: fromRoomId,
-          toRoom: toRoom.room_id
+          operation: Operation.Enter,
+          fromRoom: fromRoom,
+          toRoom: toRoom
         });
         break;
       case Operation.Exit:
@@ -65,11 +78,10 @@ export async function checkInOut(operation: Operation, toRoom: Room, ticket: Tic
           return false;
         }
         await updateCurrentRoom(toRoom, ticket, fromRoom, collection);
-        const fromRoomId_ = fromRoom ? fromRoom.room_id : "undefined";
         await recordTrackEntry(collection, ticket, {
-          operation: "exit",
-          from_room: fromRoomId_,
-          toRoom: toRoom.room_id,
+          operation: Operation.Exit,
+          fromRoom: fromRoom,
+          toRoom: toRoom,
         });
         break;
     }
@@ -97,9 +109,15 @@ async function updateCurrentRoom(toUpdate: Room, ticket: Ticket, fromRoom: Room 
  * @param ticket
  * @param entryData
  */
-export async function recordTrackEntry(collection: ReferenceCollection, ticket: Ticket, entryData: object): Promise<void> {
+export async function recordTrackEntry(collection: ReferenceCollection, ticket: Ticket, entryData: TrackData): Promise<void> {
+  const toRecord = {
+    operation: entryData.operation.toString(),
+    fromRoom: entryData.fromRoom ? entryData.fromRoom.room_id : "undefined",
+    to_room: entryData.toRoom.room_id,
+  }
+
   const data = {
-    data: entryData,
+    data: toRecord,
     time: FieldValue.serverTimestamp()
   }
 
@@ -110,15 +128,56 @@ export async function recordTrackEntry(collection: ReferenceCollection, ticket: 
 async function updateGuestCount(ref: Reference, room: Room, delta: number): Promise<boolean> {
   const result = await ref.child(room.room_id).transaction(count => {
     let c;
-    if(count){
+    if (count) {
       c = count;
-    }else{
+    } else {
       c = 0;
     }
 
-    c+= delta;
+    c += delta;
     return c;
   });
 
   return result.committed;
+}
+
+export async function readAllTrackData(collection: ReferenceCollection, ticket_id: string): Promise<(RawTrackData | null)[]> {
+  const trackData = await (collection.tracksCollection.doc(ticket_id).collection("trackings").get());
+  return Promise.all(trackData.docs.map(doc => rawTrackDataFromSnapShot(collection, doc.data())));
+}
+
+async function rawTrackDataFromSnapShot(collection: ReferenceCollection, snapshot: DocumentData): Promise<RawTrackData | null> {
+  const trackData = await trackDataFromSnapShot(collection, snapshot["data"]); // TODO wrap safeAs
+  if (trackData) {
+    const time = safeAsTimeStamp(snapshot["time"]);
+    if (time) {
+      return {
+        data: trackData,
+        time: time
+      }
+    }
+  }
+  return null;
+}
+
+async function trackDataFromSnapShot(collection: ReferenceCollection, snapshot: DocumentData): Promise<TrackData | null> {
+  const operation_str = safeAsString(snapshot["operation"]);
+  if (!operation_str) return null;
+  const operation = operationFromString(operation_str);
+  if (operation) {
+    const fromRoomId = safeAsString(snapshot["fromRoom"]);
+    const toRoomId = safeAsString(snapshot["toRoom"]);
+    if (fromRoomId && toRoomId) {
+      const fromRoom = await roomById(collection, fromRoomId);
+      const toRoom = await roomById(collection, toRoomId);
+      if (fromRoom && toRoom) {
+        return {
+          operation: operation,
+          fromRoom: fromRoom,
+          toRoom: toRoom
+        }
+      }
+    }
+  }
+  return null;
 }

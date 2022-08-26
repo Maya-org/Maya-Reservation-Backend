@@ -16,6 +16,7 @@ import {TicketType, ticketTypeByID} from "./api/models/TicketType";
 import {any, errorGCP} from "./util";
 import {ticketByID} from "./api/models/Ticket";
 import Timestamp = firestore.Timestamp;
+import {lookUp} from "./LookUp";
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -67,7 +68,7 @@ export const user = functions.region('asia-northeast1').https.onRequest(async (q
       const us = await userFromCollection(collection, uAuth);
       if (us === null) {
         res.status(404).send(
-          toInternalException("InternalException", "ユーザー情報が不足しています")
+          toInternalException("InternalException", "ユーザー情報が見つかりません")
         );
       } else {
         res.status(200).send(addTypeProperty({
@@ -394,5 +395,21 @@ export const room = functions.region('asia-northeast1').https.onRequest(async (q
       }));
       res.status(200).send(addTypeProperty({"rooms": rs}, "rooms"));
     });
+  });
+});
+
+export const lookup = functions.region('asia-northeast1').https.onRequest(async (q, s) => {
+  applyCORSHeaders(s);
+  handleOption(q, s);
+  await onPOST(q, s, async (json, res) => {
+    const user_id = safeAsString(json["user_id"]);
+    const ticket_id = safeAsString(json["ticket_id"]);
+    if (user_id === undefined || ticket_id === undefined) {
+      res.status(400).send(
+        toInternalException("InternalException", "必要なパラメータが不足しています")
+      );
+    } else {
+      res.status(200).send(addTypeProperty(await lookUp(collection, user_id, ticket_id), "lookup"));
+    }
   });
 });

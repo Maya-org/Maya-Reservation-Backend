@@ -21,14 +21,16 @@ export async function onGET(q: Request, s: Response, body: (req: Request, res: R
  */
 export async function onPOST(q: Request, s: Response, body: (json: { [name: string]: any }, res: Response) => Promise<void>) {
   if (q.method === "POST") {
+    let json: any | null | undefined
     try {
-      const json: any | null | undefined = JSON.parse(q.body);
-      if (json) {
-        await body(json, s);
-      }
+       json = JSON.parse(q.body);
     } catch (e) {
       // 握り潰しはしません
       s.status(400).send(toInternalException("InternalException@InvalidJson", "InvalidJson"));
+    }
+
+    if (json) {
+      await body(json, s);
     }
   }
 }

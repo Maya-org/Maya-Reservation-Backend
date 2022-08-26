@@ -139,7 +139,7 @@ export async function reserveEvent(db: Firestore, collection: ReferenceCollectio
   if (result === ReservationStatus.RESERVED) {
     // Register Tickets
     const reserved_tickets: Ticket[] = await Promise.all(reservationRequest.ticket_types.map(async ticketType => {
-      const ticket_id = await registerTicketsToCollection(collection, ticketType, reservationRequest.event);
+      const ticket_id = await registerTicketsToCollection(collection, ticketType, reservationRequest.event,reservationRequest.reservation_id);
       return {
         ticket_id: ticket_id,
         ticket_type: ticketType,
