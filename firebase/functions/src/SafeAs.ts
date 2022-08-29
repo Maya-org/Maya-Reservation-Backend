@@ -84,3 +84,12 @@ export function safeAsTimeStamp(value: any): Timestamp | undefined {
   }
   return undefined;
 }
+
+export function safeAsObject(value:any):Object | undefined{
+  if(value === undefined || value === null){
+    return undefined;
+  }else if(typeof value === "object"){
+    return value;
+  }
+  return undefined;
+}

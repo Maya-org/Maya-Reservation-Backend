@@ -589,6 +589,70 @@
           }
         ]
       }
+    },
+    "/lookup": {
+      "post": {
+        "summary": "Look Up Data Operation",
+        "operationId": "post-lookup",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {},
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "tracks": {
+                      "type": "array",
+                      "description": "!May Contains Null!",
+                      "items": {
+                        "$ref": "#/components/schemas/TrackData"
+                      }
+                    },
+                    "reservation": {
+                      "$ref": "#/components/schemas/Reservation"
+                    },
+                    "reserveId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "tracks"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "description": "",
+        "security": [
+          {
+            "FirebaseAuthenticationToken": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "user_id": {
+                    "type": "string"
+                  },
+                  "ticket_id": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "user_id",
+                  "ticket_id"
+                ]
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -889,6 +953,34 @@
           "ticket_id",
           "ticket_type",
           "event"
+        ]
+      },
+      "TrackData": {
+        "title": "TrackData",
+        "x-stoplight": {
+          "id": "u5qezcorqsukf"
+        },
+        "type": "object",
+        "properties": {
+          "operation": {
+            "type": "string",
+            "enum": [
+              "Exit",
+              "Enter"
+            ]
+          },
+          "fromRoomId": {
+            "type": "string",
+            "description": "\"undefined\"が来ることもあるよ"
+          },
+          "toRoomId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "operation",
+          "fromRoomId",
+          "toRoomId"
         ]
       }
     },

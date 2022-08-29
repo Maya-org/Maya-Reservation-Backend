@@ -6,9 +6,10 @@ import FieldValue = firestore.FieldValue;
 import Reference = database.Reference;
 import {ReferenceCollection} from "./ReferenceCollection";
 import {Ticket} from "./api/models/Ticket";
-import {safeAsString, safeAsTimeStamp} from "./SafeAs";
+import {safeAsObject, safeAsString, safeAsTimeStamp, safeGet} from "./SafeAs";
 import Timestamp = firestore.Timestamp;
 import DocumentData = firestore.DocumentData;
+import {errorGCP} from "./util";
 
 export enum Operation {
   Enter, Exit
@@ -21,15 +22,21 @@ export type TrackData = {
 }
 
 export type RawTrackData = {
-  data: TrackData;
+  data :{
+    operation: string;
+    fromRoom: Room | null;
+    toRoom: Room;
+  }
   time: Timestamp;
 }
 
 export function operationFromString(str: string): Operation | null {
   switch (str) {
     case 'enter':
+    case 'Enter':
       return Operation.Enter;
     case 'exit':
+    case 'Exit':
       return Operation.Exit;
     default:
       return null;
@@ -111,9 +118,9 @@ async function updateCurrentRoom(toUpdate: Room, ticket: Ticket, fromRoom: Room 
  */
 export async function recordTrackEntry(collection: ReferenceCollection, ticket: Ticket, entryData: TrackData): Promise<void> {
   const toRecord = {
-    operation: entryData.operation.toString(),
+    operation: Operation[entryData.operation],  // TypeScriptではenumを文字列に変換できないのでこうする
     fromRoom: entryData.fromRoom ? entryData.fromRoom.room_id : "undefined",
-    to_room: entryData.toRoom.room_id,
+    toRoom: entryData.toRoom.room_id,
   }
 
   const data = {
@@ -147,37 +154,59 @@ export async function readAllTrackData(collection: ReferenceCollection, ticket_i
 }
 
 async function rawTrackDataFromSnapShot(collection: ReferenceCollection, snapshot: DocumentData): Promise<RawTrackData | null> {
-  const trackData = await trackDataFromSnapShot(collection, snapshot["data"]); // TODO wrap safeAs
-  if (trackData) {
-    const time = safeAsTimeStamp(snapshot["time"]);
-    if (time) {
-      return {
-        data: trackData,
-        time: time
+  const data = safeAsObject(snapshot["data"]);
+  if (data) {
+    const trackData = await trackDataFromSnapShot(collection, data); // TODO wrap safeAs
+    if (trackData) {
+      const time = safeAsTimeStamp(snapshot["time"]);
+      if (time) {
+        return {
+          data:{
+            operation: Operation[trackData.operation],
+            fromRoom: trackData.fromRoom,
+            toRoom: trackData.toRoom
+          },
+          time: time
+        }
+      } else {
+        errorGCP("rawTrackDataFromSnapShot time is null");
       }
+    } else {
+      errorGCP("rawTrackDataFromSnapShot trackData is null");
     }
+  } else {
+    errorGCP("[Returning Null]in rawTrackDataFromSnapShot data is not object");
   }
   return null;
 }
 
-async function trackDataFromSnapShot(collection: ReferenceCollection, snapshot: DocumentData): Promise<TrackData | null> {
-  const operation_str = safeAsString(snapshot["operation"]);
+async function trackDataFromSnapShot(collection: ReferenceCollection, obj: any): Promise<TrackData | null> {
+  const operation_str = safeAsString(safeGet(obj, "operation"));
   if (!operation_str) return null;
   const operation = operationFromString(operation_str);
-  if (operation) {
-    const fromRoomId = safeAsString(snapshot["fromRoom"]);
-    const toRoomId = safeAsString(snapshot["toRoom"]);
-    if (fromRoomId && toRoomId) {
-      const fromRoom = await roomById(collection, fromRoomId);
-      const toRoom = await roomById(collection, toRoomId);
-      if (fromRoom && toRoom) {
-        return {
-          operation: operation,
-          fromRoom: fromRoom,
-          toRoom: toRoom
-        }
-      }
+  if (operation != null) {
+    const fromRoomId = safeAsString(safeGet(obj, "fromRoom"));
+    const toRoomId = safeAsString(safeGet(obj, "toRoom"));
+    if (toRoomId == undefined) {
+      errorGCP("trackDataFromSnapShot toRoom is not string");
+      return null;
     }
+    let fromRoom: Room | null = null;
+    let toRoom: Room | null = await roomById(collection, toRoomId);
+    if (fromRoomId != undefined && fromRoomId != "undefined") {
+      fromRoom = await roomById(collection, fromRoomId);
+    }
+    if(toRoom == null) {
+      errorGCP("trackDataFromSnapShot toRoom is null");
+      return null;
+    }
+    return {
+      operation: operation,
+      fromRoom: fromRoom,
+      toRoom: toRoom
+    }
+  } else {
+    errorGCP("trackDataFromSnapShot operation is null");
   }
   return null;
 }
