@@ -80,9 +80,9 @@ export function permissionToString(permission: Permission): string {
       return "promote";
   }
 }
-export async function hasPermission(user: UserAuthentication, permission: Permission, collection: ReferenceCollection): Promise<boolean> {
-  let permissionStr = permissionToString(permission)!;
-  let doc = await collection.adminCollection.doc(user.firebase_auth_uid).get();
+export async function hasPermission(user: UserRecord, permission: Permission, collection: ReferenceCollection): Promise<boolean> {
+  let permissionStr = permissionToString(permission);
+  let doc = await collection.adminCollection.doc(user.uid).get();
   if (doc.exists) {
     let permissionData = safeAsBoolean(doc.get(permissionStr));
     if (permissionData != undefined && permissionData) {
