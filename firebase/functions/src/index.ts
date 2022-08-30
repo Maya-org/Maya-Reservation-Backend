@@ -3,7 +3,7 @@ import * as admin from "firebase-admin";
 import {firestore} from "firebase-admin";
 import {toUser, userFromCollection, userToCollection} from "./api/models/User";
 import {safeAsString} from "./SafeAs";
-import {authenticated, checkPermission, getUser, Permission} from "./Auth";
+import {authenticated, getUser, hasPermission, Permission, permissionToString} from "./Auth";
 import {toInternalException} from "./api/responces/InternalException";
 import {eventFromDoc, ReservableEvent, ReservationStatus, reserveEvent} from "./api/models/ReservableEvent";
 import {addTypeProperty, applyCORSHeaders, handleOption, onGET, onPOST} from "./EndPointUtil";
@@ -179,21 +179,11 @@ export const permissions = functions.region('asia-northeast1').https.onRequest(a
   handleOption(q, s);
   await onGET(q, s, async (req, res) => {
     await authenticated(admin.auth(), req, res, async (_record, uAuth) => {
-      let values = Object.keys(Permission)
-        .filter(async key => {
-          // @ts-ignore
-          let perm = Permission[key] as Permission
-          let b: boolean = false;
-          await checkPermission(s, collection, uAuth, perm, async () => {
-            b = true
-          }, async () => {
-            b = false
-          });
-          return b;
-        })
-        .filter(v => {
-          return Number.isNaN(parseInt(v))
-        });
+      // @ts-ignore
+      let permissions = Object.entries(Permission).map(([_key, value]) => value).filter(v => !Number.isInteger(v)).map((str:string) => Permission[str]) as Permission[];
+      let values : (string | null)[] = permissions.filter((p:Permission) => {
+        return hasPermission(uAuth,p,collection);
+      }).map((p:Permission) => permissionToString(p));
       s.status(200).send(addTypeProperty({"permissions": values}, "permissions"));
     });
   });
