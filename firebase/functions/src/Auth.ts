@@ -1,10 +1,10 @@
-import {auth, firestore} from "firebase-admin";
+import {auth} from "firebase-admin";
 import Auth = auth.Auth;
 import {UserRecord} from "firebase-admin/lib/auth/user-record";
 import {Request, Response} from "firebase-functions";
 import {toAuth, UserAuthentication} from "./api/models/UserAuthentication";
 import {toUserAuthenticationFailed} from "./api/responces/UserAuthenticationFailed";
-import CollectionReference = firestore.CollectionReference;
+import {ReferenceCollection} from "./ReferenceCollection";
 
 /**
  * @return {string} The authentication bearer token.
@@ -82,7 +82,7 @@ function permissionToString(permission: Permission): string {
 
 export async function checkPermission(
   res: Response,
-  adminCollection: CollectionReference,
+  collection: ReferenceCollection,
   user: UserAuthentication,
   permission: Permission,
   body: () => Promise<void>,
@@ -90,7 +90,7 @@ export async function checkPermission(
     res.status(401).send(toUserAuthenticationFailed("UserAuthenticationFailed@PermissionDenied"));
   }) {
   let permissionStr = permissionToString(permission);
-  let doc = await adminCollection.doc(user.firebase_auth_uid).get();
+  let doc = await collection.adminCollection.doc(user.firebase_auth_uid).get();
   if (doc.exists) {
     let permissionData = doc.get(permissionStr);
     if (permissionData !== undefined && permissionData != null && permissionData === true) {
@@ -101,4 +101,12 @@ export async function checkPermission(
 
   // permission not found
   await fail()
+}
+
+export async function getUser(auth: Auth, uid: string): Promise<UserRecord | null> {
+  return auth.getUser(uid).then(user => {
+    return user
+  }).catch(_ => {
+    return null
+  });
 }

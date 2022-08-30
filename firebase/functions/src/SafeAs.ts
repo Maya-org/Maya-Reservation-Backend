@@ -5,6 +5,7 @@
 import {firestore} from "firebase-admin";
 import {DocumentSnapshot} from "firebase-functions/lib/providers/firestore";
 import DocumentReference = firestore.DocumentReference;
+import Timestamp = firestore.Timestamp;
 
 export function safeAsString(value: any): string | undefined {
   if (value === undefined || value === null) {
@@ -50,11 +51,10 @@ export function safeAsDocumentSnapshot(value: any): DocumentSnapshot | undefined
   return value as DocumentSnapshot;
 }
 
-export function safeGet(obj:any | undefined,key:string) : any | undefined{
-  if (obj !== undefined){
+export function safeGet(obj: any | undefined, key: string): any | undefined {
+  if (obj !== undefined) {
     return obj[key];
-  }
-  else {
+  } else {
     return undefined
   }
 }
@@ -68,10 +68,28 @@ export function safeAsBoolean(value: any): boolean | undefined {
   return undefined;
 }
 
-export function mapUndefinedToNull<T>(obj:T | null | undefined): T | null {
+export function mapUndefinedToNull<T>(obj: T | null | undefined): T | null {
   if (obj === undefined) {
     return null;
   } else {
     return obj;
   }
+}
+
+export function safeAsTimeStamp(value: any): Timestamp | undefined {
+  if (value === undefined || value === null) {
+    return undefined;
+  } else if (value instanceof Timestamp) {
+    return value;
+  }
+  return undefined;
+}
+
+export function safeAsObject(value:any):Object | undefined{
+  if(value === undefined || value === null){
+    return undefined;
+  }else if(typeof value === "object"){
+    return value;
+  }
+  return undefined;
 }

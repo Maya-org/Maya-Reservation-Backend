@@ -1,3 +1,5 @@
+import {TicketType} from "./api/models/TicketType";
+
 const {error} = require("firebase-functions/lib/logger");
 
 export function findFirst<T>(arr: Array<T>, predicate: (item: T) => boolean): T | undefined {
@@ -20,4 +22,16 @@ export function any<T>(arr: Array<T>, predicate: (item: T) => boolean): boolean 
 
 export function errorGCP(...args: any[]) {
   error(args);
+}
+
+export function sumAll(arr: Array<number>): number {
+  let sum = 0;
+  for (const item of arr) {
+    sum += item;
+  }
+  return sum;
+}
+
+export function headCount(arr:TicketType[]):number{
+  return sumAll(arr.map(type => type.reservable_group.headcount));
 }

@@ -1,20 +1,18 @@
-import {Group, groupFromObject, isSameGroup} from "./Group";
+import {Group, groupFromStrings, isSameGroup} from "./Group";
 import {DocumentSnapshot} from "firebase-functions/lib/providers/firestore";
-import {safeAsBoolean, safeAsString} from "../../SafeAs";
-import {any} from "../../util";
-import {firestore} from "firebase-admin";
-import CollectionReference = firestore.CollectionReference;
+import {safeAsString} from "../../SafeAs";
+import {ReferenceCollection} from "../../ReferenceCollection";
+import {errorGCP} from "../../util";
 
 export type TicketType = {
   ticket_type_id: string;
-  reservable_group: Group[];
+  reservable_group: Group;
   display_ticket_name: string;
   display_ticket_description?: string;
-  require_two_factor: boolean;
 }
 
 export function isAssignable(ticket: TicketType, group: Group): boolean {
-  return any(ticket.reservable_group, g => isSameGroup(g, group));
+  return isSameGroup(ticket.reservable_group, group);
 }
 
 /**
@@ -25,47 +23,26 @@ export async function ticketTypeFromDocument(document: DocumentSnapshot): Promis
   const ticket_type_id = document.id;
   const display_ticket_name = safeAsString(document.get("display_ticket_name"));
   const display_ticket_description = safeAsString(document.get("display_ticket_description"));
-  const require_two_factor = safeAsBoolean(document.get("require_two_factor"));
-  let reservable_group: Group[] = [];
-
-  for (const key in Object.keys(document.get("reservable_group"))) {
-    const group = groupFromObject(document.get("reservable_group")[key]);
-    if (group !== null) {
-      reservable_group.push(group);
-    }
+  const reservable_group_data: string[] | undefined = document.get("reservable_group"); // undefinable
+  if (display_ticket_name === undefined || reservable_group_data === undefined) {
+    errorGCP("in ticketTypeFromDocument, returns null # display_ticket_name || reservable_group_data", "path", document.ref.path);
+    return null;
   }
-
-  if (reservable_group === []) {
-    // reservable_groupが空の場合はnullを返す
+  const reservable_group = groupFromStrings(reservable_group_data);
+  if (reservable_group === null) {
+    errorGCP("in ticketTypeFromDocument, returns null # reservable_group", "path", document.ref.path);
     return null;
   }
 
-  if (display_ticket_name === undefined || require_two_factor === undefined) {
-    return null;
-  }
 
   return {
     ticket_type_id: ticket_type_id,
     reservable_group: reservable_group,
     display_ticket_name: display_ticket_name,
     display_ticket_description: display_ticket_description,
-    require_two_factor: require_two_factor
   }
 }
 
-/**
- * TicketTypeのTwoFactorKeyを取得する(注意!!!!!絶対漏らすな!!!!)
- * @param ticketsCollection
- * @param ticketType
- */
-export async function getTwoFactorKey(ticketsCollection: CollectionReference, ticketType: TicketType): Promise<string | undefined> {
-  if (!ticketType.require_two_factor) {
-    return undefined;
-  }
-  const ticketTypeDoc = await ticketsCollection.doc(ticketType.ticket_type_id).get();
-  if (ticketTypeDoc.exists) {
-    return safeAsString(ticketTypeDoc.get("two_factor_key"));
-  } else {
-    return undefined;
-  }
+export async function ticketTypeByID(collection: ReferenceCollection, ticket_type_id: string): Promise<TicketType | null> {
+  return ticketTypeFromDocument(await collection.ticketTypesCollection.doc(ticket_type_id).get());
 }
