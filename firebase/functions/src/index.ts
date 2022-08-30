@@ -180,10 +180,10 @@ export const permissions = functions.region('asia-northeast1').https.onRequest(a
   await onGET(q, s, async (req, res) => {
     await authenticated(admin.auth(), req, res, async (_record, uAuth) => {
       // @ts-ignore
-      let permissions = Object.entries(Permission).map(([_key, value]) => value).filter(v => !Number.isInteger(v)).map((str:string) => Permission[str]) as Permission[];
-      let values : (string | null)[] = permissions.filter((p:Permission) => {
-        return hasPermission(uAuth,p,collection);
-      }).map((p:Permission) => permissionToString(p));
+      const perms = Object.entries(Permission).map(([_key, value]) => value).filter(v => !Number.isInteger(v)).map((str:string) => Permission[str]) as Permission[];
+      const bits = (await Promise.all(perms.map((p:Permission) => hasPermission(_record,p,collection))));
+      const result = perms.filter(() => bits.shift());
+      let values : string[] = result.map((p:Permission) => permissionToString(p));
       s.status(200).send(addTypeProperty({"permissions": values}, "permissions"));
     });
   });
