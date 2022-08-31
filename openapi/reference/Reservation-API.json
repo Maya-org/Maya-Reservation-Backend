@@ -365,6 +365,52 @@
           }
         ],
         "description": "Userの権限一覧をリクエストします(基本的にはデバッグ用)"
+      },
+      "post": {
+        "summary": "Grant Permission",
+        "operationId": "post-permissions",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/InternalException"
+          },
+          "401": {
+            "$ref": "#/components/responses/UserAuthenticationFailed"
+          }
+        },
+        "description": "権限の付与機能",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "target_user_uid": {
+                    "type": "string"
+                  },
+                  "data": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "[key]": {
+                          "type": "boolean"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "FirebaseAuthenticationToken": []
+          }
+        ]
       }
     },
     "/modify": {

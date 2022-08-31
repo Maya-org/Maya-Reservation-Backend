@@ -80,6 +80,7 @@ export function permissionToString(permission: Permission): string {
       return "promote";
   }
 }
+
 export async function hasPermission(user: UserRecord, permission: Permission, collection: ReferenceCollection): Promise<boolean> {
   let permissionStr = permissionToString(permission);
   let doc = await collection.adminCollection.doc(user.uid).get();
@@ -98,4 +99,8 @@ export async function getUser(auth: Auth, uid: string): Promise<UserRecord | nul
   }).catch(_ => {
     return null
   });
+}
+
+export async function updatePermission(collection: ReferenceCollection, operator: UserRecord, target_uid: string, data: {[field: string]: any}) {
+  await collection.adminCollection.doc(target_uid).set(data, {merge: true});
 }
