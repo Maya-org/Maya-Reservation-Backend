@@ -22,7 +22,7 @@ export type TrackData = {
 }
 
 export type RawTrackData = {
-  data :{
+  data: {
     operation: string;
     fromRoom: Room | null;
     toRoom: Room;
@@ -142,6 +142,9 @@ async function updateGuestCount(ref: Reference, room: Room, delta: number): Prom
     }
 
     c += delta;
+    if (c < 0) {
+      errorGCP("Guest count is negative");
+    }
     return c;
   });
 
@@ -161,7 +164,7 @@ async function rawTrackDataFromSnapShot(collection: ReferenceCollection, snapsho
       const time = safeAsTimeStamp(snapshot["time"]);
       if (time) {
         return {
-          data:{
+          data: {
             operation: Operation[trackData.operation],
             fromRoom: trackData.fromRoom,
             toRoom: trackData.toRoom
@@ -196,7 +199,7 @@ async function trackDataFromSnapShot(collection: ReferenceCollection, obj: any):
     if (fromRoomId != undefined && fromRoomId != "undefined") {
       fromRoom = await roomById(collection, fromRoomId);
     }
-    if(toRoom == null) {
+    if (toRoom == null) {
       errorGCP("trackDataFromSnapShot toRoom is null");
       return null;
     }
