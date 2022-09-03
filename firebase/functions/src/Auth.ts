@@ -5,6 +5,7 @@ import {Request, Response} from "firebase-functions";
 import {toAuth, UserAuthentication} from "./api/models/UserAuthentication";
 import {toUserAuthenticationFailed} from "./api/responces/UserAuthenticationFailed";
 import {ReferenceCollection} from "./ReferenceCollection";
+import {safeAsBoolean} from "./SafeAs";
 
 /**
  * @return {string} The authentication bearer token.
@@ -69,7 +70,7 @@ export enum Permission {
   Promote
 }
 
-function permissionToString(permission: Permission): string {
+export function permissionToString(permission: Permission): string {
   switch (permission) {
     case Permission.Debug:
       return "debug";
@@ -80,27 +81,16 @@ function permissionToString(permission: Permission): string {
   }
 }
 
-export async function checkPermission(
-  res: Response,
-  collection: ReferenceCollection,
-  user: UserAuthentication,
-  permission: Permission,
-  body: () => Promise<void>,
-  fail: () => Promise<void> = async () => {
-    res.status(401).send(toUserAuthenticationFailed("UserAuthenticationFailed@PermissionDenied"));
-  }) {
+export async function hasPermission(user: UserRecord, permission: Permission, collection: ReferenceCollection): Promise<boolean> {
   let permissionStr = permissionToString(permission);
-  let doc = await collection.adminCollection.doc(user.firebase_auth_uid).get();
+  let doc = await collection.adminCollection.doc(user.uid).get();
   if (doc.exists) {
-    let permissionData = doc.get(permissionStr);
-    if (permissionData !== undefined && permissionData != null && permissionData === true) {
-      await body()
-      return
+    let permissionData = safeAsBoolean(doc.get(permissionStr));
+    if (permissionData != undefined && permissionData) {
+      return true
     }
   }
-
-  // permission not found
-  await fail()
+  return false
 }
 
 export async function getUser(auth: Auth, uid: string): Promise<UserRecord | null> {
@@ -109,4 +99,8 @@ export async function getUser(auth: Auth, uid: string): Promise<UserRecord | nul
   }).catch(_ => {
     return null
   });
+}
+
+export async function updatePermission(collection: ReferenceCollection, operator: UserRecord, target_uid: string, data: {[field: string]: any}) {
+  await collection.adminCollection.doc(target_uid).set(data, {merge: true});
 }

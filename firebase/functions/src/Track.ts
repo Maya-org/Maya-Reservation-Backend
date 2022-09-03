@@ -1,9 +1,8 @@
 import {isEnterable, Room, roomById, roomFromObj} from "./api/models/Room";
-import {database, firestore} from "firebase-admin";
+import {firestore} from "firebase-admin";
 import CollectionReference = firestore.CollectionReference;
 import {DocumentSnapshot} from "firebase-functions/lib/providers/firestore";
 import FieldValue = firestore.FieldValue;
-import Reference = database.Reference;
 import {ReferenceCollection} from "./ReferenceCollection";
 import {Ticket} from "./api/models/Ticket";
 import {safeAsObject, safeAsString, safeAsTimeStamp, safeGet} from "./SafeAs";
@@ -22,7 +21,7 @@ export type TrackData = {
 }
 
 export type RawTrackData = {
-  data :{
+  data: {
     operation: string;
     fromRoom: Room | null;
     toRoom: Room;
@@ -103,10 +102,10 @@ async function updateCurrentRoom(toUpdate: Room, ticket: Ticket, fromRoom: Room 
 
   if (fromRoom) {
     // チェックアウトしたらチェックアウトした部屋の人数を減らす
-    b = b && await updateGuestCount(collection.guestCountRef, fromRoom, -(ticket.ticket_type.reservable_group.headcount));
+    b = b && await updateGuestCount(collection, fromRoom, -(ticket.ticket_type.reservable_group.headcount));
   }
   // チェックアウトしたらチェックインした部屋の人数を増やす
-  b = b && await updateGuestCount(collection.guestCountRef, toUpdate, ticket.ticket_type.reservable_group.headcount);
+  b = b && await updateGuestCount(collection, toUpdate, ticket.ticket_type.reservable_group.headcount);
   return b;
 }
 
@@ -132,8 +131,8 @@ export async function recordTrackEntry(collection: ReferenceCollection, ticket: 
 }
 
 
-async function updateGuestCount(ref: Reference, room: Room, delta: number): Promise<boolean> {
-  const result = await ref.child(room.room_id).transaction(count => {
+async function updateGuestCount(ref: ReferenceCollection, room: Room, delta: number): Promise<boolean> {
+  const result = await ref.guestCountRef.child(room.room_id).transaction(count => {
     let c;
     if (count) {
       c = count;
@@ -142,10 +141,32 @@ async function updateGuestCount(ref: Reference, room: Room, delta: number): Prom
     }
 
     c += delta;
+    if (c < 0) {
+      errorGCP("Guest count is negative");
+    }
     return c;
   });
 
-  return result.committed;
+  if (result.committed) {
+    if (delta > 0) {
+      // 人数が増えたら、累計人数を増やす
+      const updateSum = await ref.guestCountSumRef.child(room.room_id).transaction(count => {
+        let c;
+        if (count) {
+          c = count;
+        } else {
+          c = 0;
+        }
+
+        c += delta;
+        return c;
+      });
+      return updateSum.committed;
+    }
+    // 退出は関係ない
+    return true;
+  }
+  return false;
 }
 
 export async function readAllTrackData(collection: ReferenceCollection, ticket_id: string): Promise<(RawTrackData | null)[]> {
@@ -161,7 +182,7 @@ async function rawTrackDataFromSnapShot(collection: ReferenceCollection, snapsho
       const time = safeAsTimeStamp(snapshot["time"]);
       if (time) {
         return {
-          data:{
+          data: {
             operation: Operation[trackData.operation],
             fromRoom: trackData.fromRoom,
             toRoom: trackData.toRoom
@@ -196,7 +217,7 @@ async function trackDataFromSnapShot(collection: ReferenceCollection, obj: any):
     if (fromRoomId != undefined && fromRoomId != "undefined") {
       fromRoom = await roomById(collection, fromRoomId);
     }
-    if(toRoom == null) {
+    if (toRoom == null) {
       errorGCP("trackDataFromSnapShot toRoom is null");
       return null;
     }

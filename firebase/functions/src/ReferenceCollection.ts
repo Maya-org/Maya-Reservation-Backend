@@ -19,22 +19,24 @@ export type ReferenceCollection = {
   roomsCollection: CollectionReference,
   tracksCollection: CollectionReference,
   guestCountRef: Reference,
+  guestCountSumRef:Reference,
   db: Firestore,
   realTimeDB: Database
 }
 
-export function initCollection(firestore: Firestore, realTimeDB: Database): ReferenceCollection {
+export function initCollection(fs: Firestore, realTimeDB: Database): ReferenceCollection {
   return {
-    usersCollection: firestore.collection("users"),
-    eventsCollection: firestore.collection("events"),
-    ticketsCollection: firestore.collection("tickets"),
-    ticketTypesCollection: firestore.collection("ticketTypes"),
-    reservationsCollection: firestore.collection("reservations"),
-    adminCollection: firestore.collection("admin"),
-    roomsCollection: firestore.collection("rooms"),
-    tracksCollection: firestore.collection("track"),
+    usersCollection: fs.collection("users"),
+    eventsCollection: fs.collection("events"),
+    ticketsCollection: fs.collection("tickets"),
+    ticketTypesCollection: fs.collection("ticketTypes"),
+    reservationsCollection: fs.collection("reservations"),
+    adminCollection: fs.collection("admin"),
+    roomsCollection: fs.collection("rooms"),
+    tracksCollection: fs.collection("track"),
     guestCountRef: realTimeDB.ref("guestCount"),
-    db: firestore,
+    guestCountSumRef: realTimeDB.ref("guestCountSum"),
+    db: fs,
     realTimeDB: realTimeDB
   }
 }
