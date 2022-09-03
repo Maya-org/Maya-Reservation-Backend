@@ -17,6 +17,7 @@ import {any, errorGCP} from "./util";
 import {ticketByID} from "./api/models/Ticket";
 import Timestamp = firestore.Timestamp;
 import {lookUp} from "./LookUp";
+import {bindWristband, getWristband} from "./WristBand";
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -178,7 +179,7 @@ export const permissions = functions.region('asia-northeast1').https.onRequest(a
   applyCORSHeaders(s);
   handleOption(q, s);
   await onGET(q, s, async (req, res) => {
-    await authenticated(admin.auth(), req, res, async (_record, uAuth) => {
+    await authenticated(admin.auth(), req, res, async (_record, _uAuth) => {
       // @ts-ignore
       const perms = Object.entries(Permission).map(([_key, value]) => value).filter(v => !Number.isInteger(v)).map((str: string) => Permission[str]) as Permission[];
       const bits = (await Promise.all(perms.map((p: Permission) => hasPermission(_record, p, collection))));
@@ -186,18 +187,18 @@ export const permissions = functions.region('asia-northeast1').https.onRequest(a
       let values: string[] = result.map((p: Permission) => permissionToString(p));
       s.status(200).send(addTypeProperty({"permissions": values}, "permissions"));
     });
+  });
 
-    await onPOST(q, s, async (req, res) => {
-      await authenticated(admin.auth(), q, res, async (_record, _uAuth) => {
-        const target_uid = safeAsString(req["target_user_uid"]);
-        const data = req["data"];
-        if (target_uid == undefined || data == undefined) {
-          res.status(400).send(toInternalException("InternalException", "target_uid:" + target_uid + ",data:" + data))
-        } else {
-          await updatePermission(collection, _record, target_uid, data);
-          res.status(200).send(addTypeProperty({}, "post-permissions"));
-        }
-      });
+  await onPOST(q, s, async (req, res) => {
+    await authenticated(admin.auth(), q, res, async (_record, _uAuth) => {
+      const target_uid = safeAsString(req["target_user_uid"]);
+      const data = req["data"];
+      if (target_uid == undefined || data == undefined) {
+        res.status(400).send(toInternalException("InternalException", "target_uid:" + target_uid + ",data:" + data))
+      } else {
+        await updatePermission(collection, _record, target_uid, data);
+        res.status(200).send(addTypeProperty({}, "post-permissions"));
+      }
     });
   });
 });
@@ -333,14 +334,22 @@ export const check = functions.region('asia-northeast1').https.onRequest(async (
   await onPOST(q, s, async (json, res) => {
     await authenticated(admin.auth(), q, s, async (_, __) => {
       const operation_str = safeAsString(json["operation"]);
-      const auth_uid = safeAsString(json["auth_uid"]);
+      const wristbandID = safeAsString(json["wristbandID"]);
       const room_id = safeAsString(json["room_id"]);
-      const ticket_id = safeAsString(json["ticket_id"]);
 
-      if (operation_str === undefined || auth_uid === undefined || room_id === undefined || ticket_id === undefined) {
-        errorGCP("Failed in check", "必要なパラメータが不足しています", "operation", operation_str, "auth_uid", auth_uid, "room_id", room_id, "ticket_id", ticket_id);
+      if (operation_str === undefined || wristbandID === undefined || room_id === undefined) {
+        errorGCP("Failed in check", "必要なパラメータが不足しています", "operation", operation_str, "wristbandID", wristbandID, "room_id", room_id);
         res.status(400).send(
           toInternalException("InternalException", "チェックイン/アウト情報が不足しています")
+        );
+        return;
+      }
+
+      const wristbandData = await getWristband(collection, wristbandID);
+      if (wristbandData === undefined) {
+        errorGCP("Failed in check", "指定されたラストバンドが存在しません", "wristbandID", wristbandID);
+        res.status(400).send(
+          toInternalException("InternalException@WristbandNotFound", "指定されたリストバンドが存在しません")
         );
         return;
       }
@@ -353,7 +362,7 @@ export const check = functions.region('asia-northeast1').https.onRequest(async (
         return;
       }
 
-      const targetRecord = await getUser(admin.auth(), auth_uid);
+      const targetRecord = await getUser(admin.auth(), wristbandData.reserverID);
       if (targetRecord === null) {
         res.status(400).send(
           toInternalException("InternalException", "当該ユーザーの認証に失敗しました")
@@ -369,13 +378,14 @@ export const check = functions.region('asia-northeast1').https.onRequest(async (
         return;
       }
 
-      const ticket = await ticketByID(collection, ticket_id);
+      const ticket = await ticketByID(collection, wristbandData.ticketID);
       if (ticket === null) {
         res.status(400).send(
           toInternalException("InternalException", "指定されたチケットが存在しません")
         );
         return;
       }
+
       const result = await checkInOut(operation, targetRoom, ticket, collection);
       if (result) {
         res.status(200).send(addTypeProperty({}, "check"));
@@ -413,6 +423,31 @@ export const lookup = functions.region('asia-northeast1').https.onRequest(async 
       );
     } else {
       res.status(200).send(addTypeProperty(await lookUp(collection, user_id, ticket_id), "lookup"));
+    }
+  });
+});
+
+export const bind = functions.region('asia-northeast1').https.onRequest(async (q, s) => {
+  applyCORSHeaders(s);
+  handleOption(q, s);
+  await onPOST(q, s, async (json, res) => {
+    const wristbandID = safeAsString(json["wristbandID"]);
+    const reserverID = safeAsString(json["reserverID"]);
+    const ticketID = safeAsString(json["ticketID"]);
+
+    if (wristbandID === undefined || reserverID === undefined || ticketID === undefined) {
+      res.status(400).send(
+        toInternalException("InternalException", "必要なパラメータが不足しています")
+      );
+    } else {
+      const b = await bindWristband(collection, wristbandID, reserverID, ticketID);
+      if (b) {
+        res.status(200).send(addTypeProperty({}, "bind"));
+      } else {
+        res.status(400).send(
+          toInternalException("InternalException", "すでに紐づいています")
+        );
+      }
     }
   });
 });

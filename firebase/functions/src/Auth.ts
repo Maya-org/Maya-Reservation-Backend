@@ -67,7 +67,8 @@ export async function authenticated(
 export enum Permission {
   Debug,
   Entrance,
-  Promote
+  Promote,
+  Bind
 }
 
 export function permissionToString(permission: Permission): string {
@@ -78,6 +79,8 @@ export function permissionToString(permission: Permission): string {
       return "entrance";
     case Permission.Promote:
       return "promote";
+    case Permission.Bind:
+      return "bind";
   }
 }
 
@@ -93,14 +96,14 @@ export async function hasPermission(user: UserRecord, permission: Permission, co
   return false
 }
 
-export async function getUser(auth: Auth, uid: string): Promise<UserRecord | null> {
-  return auth.getUser(uid).then(user => {
+export async function getUser(at: Auth, uid: string): Promise<UserRecord | null> {
+  return at.getUser(uid).then(user => {
     return user
   }).catch(_ => {
     return null
   });
 }
 
-export async function updatePermission(collection: ReferenceCollection, operator: UserRecord, target_uid: string, data: {[field: string]: any}) {
+export async function updatePermission(collection: ReferenceCollection, _operator: UserRecord, target_uid: string, data: {[field: string]: any}) {
   await collection.adminCollection.doc(target_uid).set(data, {merge: true});
 }

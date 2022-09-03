@@ -536,23 +536,19 @@
                     ],
                     "description": "Enter/Exit"
                   },
-                  "auth_uid": {
-                    "type": "string",
-                    "description": "当該ユーザーのUID"
-                  },
                   "room_id": {
                     "type": "string",
                     "description": "入場する部屋のID"
                   },
-                  "ticket_id": {
-                    "type": "string"
+                  "wristbandID": {
+                    "type": "string",
+                    "description": "当該チケットと紐づいているリストバンドのID"
                   }
                 },
                 "required": [
                   "operation",
-                  "auth_uid",
                   "room_id",
-                  "ticket_id"
+                  "wristbandID"
                 ]
               }
             }
@@ -693,6 +689,54 @@
                 "required": [
                   "user_id",
                   "ticket_id"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/bind": {
+      "post": {
+        "summary": "Bind Wristband",
+        "operationId": "post-bind",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/InternalException"
+          },
+          "401": {
+            "$ref": "#/components/responses/UserAuthenticationFailed"
+          }
+        },
+        "description": "リストバンドとチケットのQRコードを紐づけます",
+        "security": [
+          {
+            "FirebaseAuthenticationToken": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "wristbandID": {
+                    "type": "string"
+                  },
+                  "reserverID": {
+                    "type": "string"
+                  },
+                  "ticketID": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "wristbandID",
+                  "reserverID",
+                  "ticketID"
                 ]
               }
             }
