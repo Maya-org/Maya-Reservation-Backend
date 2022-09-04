@@ -1,5 +1,11 @@
 import {firestore} from "firebase-admin";
-import {safeAsBoolean, safeAsNumber, safeAsReference, safeAsString, safeAsTimeStamp} from "../../SafeAs";
+import {
+  safeAsBoolean,
+  safeAsNumber,
+  safeAsReference,
+  safeAsString,
+  safeAsTimeStamp
+} from "../../SafeAs";
 import DocumentSnapshot = firestore.DocumentSnapshot;
 import DocumentReference = firestore.DocumentReference;
 import Firestore = firestore.Firestore;
@@ -19,10 +25,12 @@ export type ReservableEvent = {
   date_start: Timestamp;
   date_end?: Timestamp;
   available_at?: Timestamp;
+  closed_at?: Timestamp;
 
   capacity?: number;
   taken_capacity: number;
   required_reservation?: ReservableEvent;
+  not_co_exist_reservation?: ReservableEvent;
 
   reservable_ticket_type: TicketType[];
   require_two_factor: boolean;
@@ -30,7 +38,7 @@ export type ReservableEvent = {
   maximum_reservations_per_user?: number;
 }
 
-export async function eventFromDoc(doc: DocumentSnapshot): Promise<ReservableEvent | null> {
+export async function eventFromDoc(doc: DocumentSnapshot, disableCirculation: boolean = false): Promise<ReservableEvent | null> {
   if (doc.exists) {
     // Eventが存在する場合
     const event_id = doc.ref.id;
@@ -39,16 +47,27 @@ export async function eventFromDoc(doc: DocumentSnapshot): Promise<ReservableEve
     const date_start = safeAsTimeStamp(doc.get("date_start"));
     const date_end = safeAsTimeStamp(doc.get("date_end"));
     const available_at = safeAsTimeStamp(doc.get("available_at"));
+    const closed_at = safeAsTimeStamp(doc.get("closed_at"));
     const capacity = safeAsNumber(doc.get("capacity"));
     const taken_capacity = safeAsNumber(doc.get("taken_capacity"));
     const required_reservation_ref = safeAsReference(doc.get("required_reservation"));
+    const not_co_exist_reservation_ref = safeAsReference(doc.get("not_co_exist_reservation"));
     let required_reservation: ReservableEvent | undefined = undefined;
-    if (required_reservation_ref !== undefined) {
-      let r = await eventFromDoc(await required_reservation_ref.get());
+    if (required_reservation_ref !== undefined && !disableCirculation) {
+      let r = await eventFromDoc(await required_reservation_ref.get(), true);
       if (r !== null) {
         required_reservation = r;
       } else {
         required_reservation = undefined;
+      }
+    }
+    let not_co_exist_reservation: ReservableEvent | undefined = undefined;
+    if (not_co_exist_reservation_ref !== undefined && !disableCirculation) {
+      let r = await eventFromDoc(await not_co_exist_reservation_ref.get(), true);
+      if (r !== null) {
+        not_co_exist_reservation = r;
+      } else {
+        not_co_exist_reservation = undefined;
       }
     }
     const ticket_types = (doc.get("ticket_type") as any[]).map(ref => safeAsReference(ref)).filter(ref => ref !== undefined) as DocumentReference[];
@@ -70,9 +89,11 @@ export async function eventFromDoc(doc: DocumentSnapshot): Promise<ReservableEve
       date_start,
       date_end,
       available_at,
+      closed_at,
       capacity,
       taken_capacity,
       required_reservation,
+      not_co_exist_reservation,
       reservable_ticket_type,
       require_two_factor,
       maximum_reservations_per_user: maximum_reservations_per_user
@@ -94,8 +115,9 @@ export async function eventByID(collection: ReferenceCollection, event_id: strin
  * @param reservationRequest
  */
 export async function reserveEvent(db: Firestore, collection: ReferenceCollection, user: UserRecord, reservationRequest: ReserveRequest): Promise<ReservationStatus> {
-  if (reservationRequest.event.available_at != null && Timestamp.now().toMillis() < reservationRequest.event.available_at.toMillis() || // 予約可能機関にまだ入っていない
-    reservationRequest.event.date_start.toMillis() < Timestamp.now().toMillis()  // イベントがもうすでに開始している
+  if (reservationRequest.event.available_at != null && Timestamp.now().toMillis() < reservationRequest.event.available_at.toMillis() || // 予約可能期間にまだ入っていない
+    reservationRequest.event.date_start.toMillis() < Timestamp.now().toMillis() || // イベントがもうすでに開始している
+    (reservationRequest.event.closed_at != null && reservationRequest.event.closed_at.toMillis() < Timestamp.now().toMillis()) // 予約受付がもうすでに終了している
   ) {
     // 予約可能期間外
     return ReservationStatus.NOT_AVAILABLE;
@@ -133,13 +155,21 @@ export async function reserveEvent(db: Firestore, collection: ReferenceCollectio
       return ReservationStatus.NOT_RESERVED_REQUIRED_EVENT;
     }
   }
+  if (reservationRequest.event.not_co_exist_reservation != null) {
+    // Check if the user is reserved the not co-exist event
+    const notCoExistReservation = reservations.filter(rv => rv.event.event_id === reservationRequest.event.not_co_exist_reservation!.event_id);
+    if (notCoExistReservation.length !== 0) {
+      // Reserved the not co-exist event
+      return ReservationStatus.RESERVED_NOT_CO_EXIST_EVENT;
+    }
+  }
 
   // Check if the event is available and update the taken_capacity
   const result = await addTakenCapacity(db, collection, reservationRequest.event, headCount(reservationRequest.ticket_types));
   if (result === ReservationStatus.RESERVED) {
     // Register Tickets
     const reserved_tickets: Ticket[] = await Promise.all(reservationRequest.ticket_types.map(async ticketType => {
-      const ticket_id = await registerTicketsToCollection(collection, ticketType, reservationRequest.event,reservationRequest.reservation_id);
+      const ticket_id = await registerTicketsToCollection(collection, ticketType, reservationRequest.event, reservationRequest.reservation_id);
       return {
         ticket_id: ticket_id,
         ticket_type: ticketType,
@@ -169,7 +199,8 @@ export enum ReservationStatus {
   INVALID_TICKET_TYPE,
   INVALID_TWO_FACTOR_KEY,
   NOT_AVAILABLE,
-  NOT_RESERVED_REQUIRED_EVENT
+  NOT_RESERVED_REQUIRED_EVENT,
+  RESERVED_NOT_CO_EXIST_EVENT
 }
 
 /**

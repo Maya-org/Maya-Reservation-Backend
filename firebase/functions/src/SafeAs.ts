@@ -76,6 +76,14 @@ export function mapUndefinedToNull<T>(obj: T | null | undefined): T | null {
   }
 }
 
+export function mapNullToUndefined<T>(obj: T | null | undefined): T | undefined {
+  if (obj === null) {
+    return undefined;
+  } else {
+    return obj;
+  }
+}
+
 export function safeAsTimeStamp(value: any): Timestamp | undefined {
   if (value === undefined || value === null) {
     return undefined;

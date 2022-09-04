@@ -850,6 +850,9 @@
           "required_reservation": {
             "$ref": "#/components/schemas/ReservableEvent"
           },
+          "not_co_exist_reservation": {
+            "$ref": "#/components/schemas/ReservableEvent"
+          },
           "date_start": {
             "type": "string",
             "format": "date-time",
@@ -864,6 +867,11 @@
             "type": "string",
             "format": "date-time",
             "description": "このイベントが予約できるようになる時間\n\n省略されている場合は常にこのイベントは予約可能"
+          },
+          "closed_at": {
+            "type": "string",
+            "description": "このイベントが予約受付を終了する時間\n\n省略されている場合は常にこのイベントは予約可能",
+            "format": "date-time"
           },
           "reservable_ticket_type": {
             "type": "array",

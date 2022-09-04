@@ -15,9 +15,9 @@ import {initCollection} from "./ReferenceCollection";
 import {TicketType, ticketTypeByID} from "./api/models/TicketType";
 import {any, errorGCP} from "./util";
 import {ticketByID} from "./api/models/Ticket";
-import Timestamp = firestore.Timestamp;
 import {lookUp} from "./LookUp";
 import {bindWristband, getWristband} from "./WristBand";
+import Timestamp = firestore.Timestamp;
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -157,6 +157,11 @@ export const reserve = functions.region('asia-northeast1').https.onRequest(async
           case ReservationStatus.NOT_RESERVED_REQUIRED_EVENT:
             res.status(400).send(
               toInternalException("InternalException@NotReservedRequiredEvent", "必要なイベントが予約されていません")
+            );
+            break;
+          case ReservationStatus.RESERVED_NOT_CO_EXIST_EVENT:
+            res.status(400).send(
+              toInternalException("InternalException@ReservedNotCoExistEvent", "同時に予約できないイベントが予約されています")
             );
             break;
         }

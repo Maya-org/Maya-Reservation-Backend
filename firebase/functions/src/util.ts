@@ -32,6 +32,14 @@ export function sumAll(arr: Array<number>): number {
   return sum;
 }
 
-export function headCount(arr:TicketType[]):number{
+export function headCount(arr: TicketType[]): number {
   return sumAll(arr.map(type => type.reservable_group.headcount));
+}
+
+export function mapUndefined<I, R>(value: undefined | I, f: (I: I) => R): R | undefined {
+  if (value === undefined) {
+    return undefined;
+  } else {
+    return f(value);
+  }
 }
