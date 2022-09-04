@@ -14,10 +14,11 @@ import {roomById} from "./api/models/Room";
 import {initCollection} from "./ReferenceCollection";
 import {TicketType, ticketTypeByID} from "./api/models/TicketType";
 import {any, errorGCP} from "./util";
-import {ticketByID} from "./api/models/Ticket";
+import {Ticket, ticketByID} from "./api/models/Ticket";
 import {lookUp} from "./LookUp";
 import {bindWristband, getWristband} from "./WristBand";
 import Timestamp = firestore.Timestamp;
+import {forceReserve, forceReserveID} from "./Force";
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -373,12 +374,16 @@ export const check = functions.region('asia-northeast1').https.onRequest(async (
         return;
       }
 
-      const targetRecord = await getUser(admin.auth(), wristbandData.reserverID);
-      if (targetRecord === null) {
-        res.status(400).send(
-          toInternalException("InternalException", "当該ユーザーの認証に失敗しました")
-        );
-        return;
+      if (wristbandData.reserverID == forceReserveID) {
+        // 強制予約の場合はチェックイン/アウト時に認証を行わない
+      } else {
+        const targetRecord = await getUser(admin.auth(), wristbandData.reserverID);
+        if (targetRecord === null) {
+          res.status(400).send(
+            toInternalException("InternalException", "当該ユーザーの認証に失敗しました")
+          );
+          return;
+        }
       }
 
       const targetRoom = await roomById(collection, room_id);
@@ -460,5 +465,36 @@ export const bind = functions.region('asia-northeast1').https.onRequest(async (q
         );
       }
     }
+  });
+});
+
+export const force = functions.region('asia-northeast1').https.onRequest(async (q, s) => {
+  applyCORSHeaders(s);
+  handleOption(q, s);
+  await onPOST(q, s, async (json, res) => {
+    await authenticated(admin.auth(), q, s, async (record, _userAuthentication) => {
+      const req = await reservationRequestFromRequestBody(json, collection);
+      if (req === null) {
+        res.status(400).send(
+          toInternalException("InternalException", "リクエストが不正です")
+        );
+      } else {
+        const str: string | undefined = safeAsString(json["data"]);
+        let promise: Promise<Ticket[] | null> | null;
+        if (str === undefined) {
+          promise = forceReserve(record, req, collection, "(no data)");
+        } else {
+          promise = forceReserve(record, req, collection, str);
+        }
+        const result: Ticket[] | null = await promise;
+        if (result === null) {
+          res.status(400).send(
+            toInternalException("InternalException", "権限が不足しています")
+          );
+          return
+        }
+        res.status(200).send(addTypeProperty({"tickets": result}, "force"));
+      }
+    });
   });
 });

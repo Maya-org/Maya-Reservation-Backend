@@ -68,7 +68,8 @@ export enum Permission {
   Debug,
   Entrance,
   Promote,
-  Bind
+  Bind,
+  ForceReserve,
 }
 
 export function permissionToString(permission: Permission): string {
@@ -81,6 +82,8 @@ export function permissionToString(permission: Permission): string {
       return "promote";
     case Permission.Bind:
       return "bind";
+    case Permission.ForceReserve:
+      return "force_reserve";
   }
 }
 

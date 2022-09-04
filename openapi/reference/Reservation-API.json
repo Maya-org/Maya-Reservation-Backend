@@ -743,6 +743,81 @@
           }
         }
       }
+    },
+    "/force": {
+      "post": {
+        "summary": "Force Reserve",
+        "operationId": "post-force",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "tickets": {
+                      "type": "array",
+                      "description": "発行したチケット",
+                      "items": {
+                        "$ref": "#/components/schemas/Ticket"
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "tickets"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/InternalException"
+          },
+          "401": {
+            "$ref": "#/components/responses/UserAuthenticationFailed"
+          }
+        },
+        "description": "スマホを持ってない人・当日殴り込み用の強制予約モード",
+        "security": [
+          {
+            "FirebaseAuthenticationToken": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "event_id": {
+                    "type": "string",
+                    "description": "当該イベントのID"
+                  },
+                  "tickets": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/TicketType"
+                    }
+                  },
+                  "data": {
+                    "type": "string",
+                    "description": "備考用のデータ記入スペース"
+                  }
+                },
+                "required": [
+                  "event_id",
+                  "tickets"
+                ]
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {

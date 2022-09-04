@@ -210,7 +210,7 @@ export enum ReservationStatus {
  * @param event
  * @param toAdd
  */
-export async function addTakenCapacity(db: Firestore, collection: ReferenceCollection, event: ReservableEvent, toAdd: number): Promise<ReservationStatus> {
+export async function addTakenCapacity(db: Firestore, collection: ReferenceCollection, event: ReservableEvent, toAdd: number,isForce:boolean = false): Promise<ReservationStatus> {
   try {
     return await db.runTransaction(async (t) => {
       const ref = collection.eventsCollection.doc(event.event_id);
@@ -220,7 +220,7 @@ export async function addTakenCapacity(db: Firestore, collection: ReferenceColle
       if (data.exists) {
         if (capacity !== undefined) {
           // 予約上限がある場合
-          if (new_taken_capacity <= capacity) {
+          if (new_taken_capacity <= capacity || isForce) {
             // 予約可能
             t.update(ref, {
               taken_capacity: new_taken_capacity
