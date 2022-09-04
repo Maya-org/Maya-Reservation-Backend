@@ -33,9 +33,14 @@ export async function modifyReservation(collection: ReferenceCollection, user: U
     return ModifyStatus.RESERVATION_NOT_FOUND;
   }
 
-  if(reservation.event.date_start.toMillis() < Timestamp.now().toMillis()){
+  if (reservation.event.date_start.toMillis() < Timestamp.now().toMillis()) {
     // もうすでにイベントが開始している
     return ModifyStatus.EVENT_ALREADY_STARTED;
+  }
+
+  if ((reservation.event.available_at != null && reservation.event.available_at.toMillis() > Timestamp.now().toMillis()) || // まだ予約可能ではない
+    (reservation.event.closed_at != null && reservation.event.closed_at.toMillis() < Timestamp.now().toMillis())) { // 予約可能期限を過ぎている
+    return ModifyStatus.EVENT_NOT_AVAILABLE;
   }
 
   const ticket_two_factor_key = await getTwoFactorKey(collection, reservation.event)
@@ -61,7 +66,7 @@ export async function modifyReservation(collection: ReferenceCollection, user: U
 
   // Add the new tickets to the reservation.
   const updatedTickets: Ticket[] = await Promise.all(toUpdate.map(async type => {
-    const updatedTicketID = await registerTicketsToCollection(collection, type, reservation.event,reservation.reservation_id);
+    const updatedTicketID = await registerTicketsToCollection(collection, type, reservation.event, reservation.reservation_id);
     return {
       ticket_type: type,
       ticket_id: updatedTicketID,
@@ -119,7 +124,8 @@ export enum ModifyStatus {
   CANCELLED,
   INVALID_MODIFY_DATA,
   INVALID_TWO_FACTOR_KEY,
-  EVENT_ALREADY_STARTED
+  EVENT_ALREADY_STARTED,
+  EVENT_NOT_AVAILABLE
 }
 
 /**
